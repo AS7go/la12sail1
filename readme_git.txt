@@ -172,7 +172,7 @@ git checkout lesson_02 # Переключение на ветку lesson_02
 	или одной командой
 git checkout -b lesson_02 main # Создание и переключение на ветку lesson_02
 
-# Вносите изменения для урока 2 add new text
+# Вносите изменения для урока 2 
 git add .
 git commit -m 'less2 Laravel 12 sail Breeze Spatie'
 
