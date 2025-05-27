@@ -191,7 +191,7 @@ q выход
 git branch lesson_03 # Создание ветки lesson_03
 git checkout lesson_03 # Переключение на ветку lesson_03
 
-	или одной командой
+	или одной командой 1111
 git checkout -b lesson_03 main # Создание и переключение на ветку lesson_03
 
 git add .
