@@ -1,0 +1,281 @@
+=== Урок 1 Версии ПО для работы с Docker
+=== About the system and software
+
+lsb_release -a
+    No LSB modules are available.
+    Distributor ID:	Ubuntu
+    Description:	Ubuntu 22.04.5 LTS
+    Release:	22.04
+    Codename:	jammy
+docker -v
+    Docker version 28.1.1, build 4eba377
+docker-compose -v
+    Docker Compose version v2.12.2
+composer -V
+    Composer 2.2.6 2022-02-04 17:00:38
+code -v
+    1.99.3
+    17baf841131aa23349f217ca7c570c76ee87b957
+    x64
+
+--- Очистить вывод в окне
+clear
+
+--- Посмотреть список команд
+history
+
+--- Удалить историю комнад
+history -c
+
+В терминале Ubuntu:
+копировать Ctrl+Shift+c
+вставить Ctrl+Shift+v
+
+
+=== Урок 2 Установка Laravel 12, sail, Breeze, запуск проекта
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+Документация:
+
+https://laravel.com/docs/12.x/installation
+    Laravel Breeze док от Laravel 11
+https://laravel.com/docs/11.x/starter-kits#breeze-and-next
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+
+--- Создать/перейти в директорию проекта, запустить VScode
+
+mkdir project1
+cd project1
+mkdir la12sail1
+cd la12sail1
+code .
+
+--- При записи видео будут включены паузы длительных процессов
+
+--- Установка Laravel 12 в текущую (пустую) директорию
+composer create-project laravel/laravel .
+
+--- https://laravel.com/docs/12.x/sail#main-content
+--- Установка Sail Into в существующие приложения
+composer require laravel/sail --dev
+
+--- Команда Опубликует docker-compose.yml файл Sail и изменит .env
+    файл для подключения к службам Docker
+
+php artisan sail:install
+  выбрать базу например -> mysql нажать Enter
+
+--- Настройка Базы Данных в файле .env
+
+DB_CONNECTION=mysql
+DB_HOST=mysql # имя сервиса в yml файле
+DB_PORT=3306
+DB_DATABASE=la12sail1
+DB_USERNAME=sail
+DB_PASSWORD=password
+
+--- (опционально, Для моих целей) Добавил phpmyadmin в docker-compose.yml, задал имена контейнерам, поменял версию PHP c 8.4 на 8.2
+
+services:
+    laravel.test:
+        build:
+            context: './vendor/laravel/sail/runtimes/8.2' # поменял версию PHP с 8.4 на 8.2
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.2/app' # поменял версию PHP с 8.4 на 8.2
+        container_name: l12s_web # Задаем имя контейнера для сервиса web
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        ports:
+            - '${APP_PORT:-80}:80'
+            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - mysql
+    mysql:
+        image: 'mysql/mysql-server:8.0'
+        container_name: l12s_mysql  # Задаем имя контейнера для сервиса mysql
+        ports:
+            - '${FORWARD_DB_PORT:-3306}:3306'
+        environment:
+            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: '${DB_DATABASE}'
+            MYSQL_USER: '${DB_USERNAME}'
+            MYSQL_PASSWORD: '${DB_PASSWORD}'
+            # MYSQL_ALLOW_EMPTY_PASSWORD: 1 # вход без пароля
+        volumes:
+            - 'sail-mysql:/var/lib/mysql'
+            - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD
+                - mysqladmin
+                - ping
+                - '-p${DB_PASSWORD}'
+            retries: 3
+            timeout: 5s
+    phpmyadmin: # добавил сервис входа в phpmyadmin
+        image: 'phpmyadmin:latest'
+        container_name: l12s_phpmyadmin  # Задаем имя контейнера для сервиса phpmyadmin
+        ports:
+            - '8080:80'
+        environment:
+            PMA_HOST: mysql
+            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+        depends_on:
+            - mysql
+        networks:
+            - sail
+
+networks:
+    sail:
+        driver: bridge
+volumes:
+    sail-mysql:
+        driver: local
+
+
+
+--- команды - запустить, выгрузить контейнеры
+./vendor/bin/sail up
+./vendor/bin/sail down
+
+--- в nano ~/.bashrc добавляем в конец строку
+nano ~/.bashrc
+
+alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
+  В nano: нажмите Ctrl+O (для записи/сохранения), затем Enter, затем Ctrl+X (для выхода)
+
+--- Чтобы изменения вступили в силу
+source ~/.bashrc
+
+--- После alias будут работать короткие команды
+sail up
+Выход Ctrl+c
+
+    Запуск в фоновом режиме
+sail up -d
+
+    Остановка проекта...
+sail down
+
+
+--- Запустить миграцию
+sail artisan migrate
+
+--- Вход на сайт
+http://localhost/
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+    или
+sail
+password
+
+--- вход в контейнер l12s_web (может быть другое). Имя container_name: l12s_web берем из
+--- docker-compose.yml. Определить NAME контейнеров можно командой docker-compose ps
+
+docker exec -it l12s_web bash
+
+--- Создаем символическую ссылку для доступа к папке storage
+sail artisan storage:link
+
+
+
+=== Установка Breeze аутентификация и регистрация
+
+--- ссылка на док https://laravel.com/docs/11.x/starter-kits#breeze-and-next
+composer require laravel/breeze --dev
+sail artisan breeze:install
+
+ ┌ Which Breeze stack would you like to install? ───────────────┐
+ │ Blade with Alpine                                            │
+ └──────────────────────────────────────────────────────────────┘
+
+ ┌ Would you like dark mode support? ───────────────────────────┐
+ │ No                                                           │
+ └──────────────────────────────────────────────────────────────┘
+
+ ┌ Which testing framework do you prefer? ──────────────────────┐
+ │ Pest                                                         │
+ └──────────────────────────────────────────────────────────────┘
+
+---
+sail artisan migrate
+
+--- Log in | Register Регистрация, вход, выход по тестовым данным сработал
+
+Name: test
+Login: test@gmail.com
+Password: 12345678
+
+    в базу данных users добавило запись 1 test test@gmail.com
+
+=== Установка spatie
+
+--- spatie ---
+https://spatie.be/docs/laravel-permission/v6/introduction
+
+--- https://spatie.be/docs/laravel-permission/v6/installation-laravel
+composer require spatie/laravel-permission
+
+--- Публикуем миграцию и config/permission.phpфайл конфигурации с помощью:
+sail artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+
+--- spatie очистка
+sail artisan optimize:clear
+    или
+sail artisan config:clear
+
+--- spatie миграция
+sail artisan migrate
+
+    создаст таблицы и файлы
+        'role_has_permissions'
+        'model_has_roles'
+        'model_has_permissions'
+        'roles'
+        'permissions'
+
+        /config/permission.php
+        /database/migrations/xxxx_xx_xx_xxxxx_create_permission_tables.php
+
+---
+в файл app/Models/User.php добавленно
+use Spatie\Permission\Traits\HasRoles; // Добавлено
+...
+use HasFactory, Notifiable, HasRoles; // Добавлено HasRoles
+
+--- Вход на сайт
+http://localhost/
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- Посмотреть список команд
+history
+
+--- Останавливает (выгружает) проект
+sail down
+
+-------------------------
