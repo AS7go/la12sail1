@@ -149,7 +149,7 @@ git checkout lesson_01
 	или одной командой
 git checkout -b lesson_01 main # Создание и переключение на ветку lesson_01
 
-# Вносите изменения для урока 1 add
+# Вносите изменения для урока 1
 git add .
 git commit -m 'Lesson 1'
 # Возможно, еще коммиты add text
