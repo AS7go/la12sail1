@@ -1,0 +1,213 @@
+В терминале Ubuntu:
+копировать Ctrl+Shift+c
+вставить Ctrl+Shift+v
+
+
+=== Урок 3 Создание, редактирование, выполнение миграции. Создание super-user (админ).
+SoftDeletes - мягкое удаление с возможностью восстановления.
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+
+--- Открыть терминал.
+--- Перейти в директорию проекта.
+cd project1/la12sail1
+
+--- Запустить VScode.
+code .
+
+--- Запустить контейнеры
+sail up -d
+
+--- Создать миграцию и модель Post
+sail artisan make:model Post -m
+
+    INFO  Model [app/Models/Post.php] created successfully.
+
+    INFO  Migration [database/migrations/xxxx_xx_xx_xx_create_posts_table.php] created successfully.
+
+--- редактируем файлы
+    /app/Models/Post.php
+    /database/migrations/xxxx_xx_xx_xx_create_posts_table.php
+
+=== файл /app/Models/Post.php
+
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes; //Импортирует трейт SoftDeletes в модель
+
+
+class Post extends Model
+{
+    use HasFactory, SoftDeletes; // Используется трейт SoftDeletes
+
+    protected $table = 'posts'; // Имя таблицы (posts) в БД, с которой связана модель Post
+
+    protected $fillable = [
+        'name',
+        'text',
+    ];
+}
+
+=== файл /database/migrations/xxxx_xx_xx_xx_create_posts_table.php
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('posts', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // Название поста
+            $table->text('text'); // Текст поста
+            $table->timestamps();
+            $table->softDeletes(); // Добавить столбец deleted_at
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('posts');
+    }
+};
+
+===
+
+--- делаем миграцию
+sail artisan migrate
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- создаем Seeder суперпользователя, назначаем роль super-user (админ)
+sail artisan make:seeder CreateSuperUserSeeder
+
+--- редактируем файл /database/seeders/CreateSuperUserSeeder.php
+
+=== Файл /database/seeders/CreateSuperUserSeeder.php
+
+<?php
+--- Посмотреть список команд
+history
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
+use Carbon\Carbon;
+
+class CreateSuperUserSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        $superUser=User::create([
+            'email'=>'admin@gmail.com',
+            'name'=>'Admin',
+            'password'=>Hash::make('12345678'),
+            'created_at'=>Carbon::now(),
+            'updated_at'=>Carbon::now(),
+        ]);
+
+        Role::create([
+            'name'=>'super-user',
+            'created_at'=>Carbon::now(),
+            'updated_at'=>Carbon::now(),
+        ]);
+
+        $superUser->assignRole('super-user');
+    }
+}
+
+===
+
+--- Команда создаст в таблицах 'users' 'roles' 'model_has_permissions'
+пользователя, роль и свяжет таблицы пользователь - роль(super-user)
+
+sail artisan db:seed --class=CreateSuperUserSeeder
+
+
+=== Подключаем bootstrap 5
+в файле -> /resources/views/layouts/app.blade.php добавляем перед <!-- Scripts --> код
+
+<!-- Styles -->
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+=== Добавляем для визуализации в файле resources/views/dashboard.blade.php после </div> перед </x-app-layouts>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+                <button type="button" class="btn btn-outline-success mb-3">Add post</button>
+                <div class="card">
+                    <h5 class="card-header">card 1</h5>
+                    <div class="card-body">
+                        <h5 class="card-title">title card 1</h5>
+                        <p class="card-text mb-3">Text card 1</p>
+                        <a href="#" class="btn btn-outline-primary">Edit</a>
+                        <a href="#" class="btn btn-outline-danger">Delete</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- Посмотреть список команд
+history
+
+--- Останавливает (выгружает) проект
+sail down
+
+--- Дополнительно для локального git сохраняем изменения, сливаем в main, создаем и переходим на новую ветку
+
+git add .
+git commit -m 'model post migrate seeder super-user'
+git checkout main
+git merge lesson_03
+git checkout -b lesson_04 main
+
+
+
+
+
