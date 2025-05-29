@@ -1,3 +1,8 @@
+-- База данных: `la12sail1`
+--
+CREATE DATABASE IF NOT EXISTS `la12sail1` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE `la12sail1`;
+
 -- phpMyAdmin SQL Dump
 -- version 5.2.2
 -- https://www.phpmyadmin.net/
