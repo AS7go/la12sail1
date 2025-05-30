@@ -113,8 +113,7 @@ sail artisan make:seeder CreateSuperUserSeeder
 === Файл /database/seeders/CreateSuperUserSeeder.php
 
 <?php
---- Посмотреть список команд
-history
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -151,11 +150,10 @@ class CreateSuperUserSeeder extends Seeder
 
 ===
 
---- Команда создаст в таблицах 'users' 'roles' 'model_has_permissions'
+--- Команда создаст в таблицах 'users' 'roles' 'model_has_roles'
 пользователя, роль и свяжет таблицы пользователь - роль(super-user)
 
 sail artisan db:seed --class=CreateSuperUserSeeder
-
 
 === Подключаем bootstrap 5
 в файле -> /resources/views/layouts/app.blade.php добавляем перед <!-- Scripts --> код
@@ -177,6 +175,7 @@ sail artisan db:seed --class=CreateSuperUserSeeder
                         <p class="card-text mb-3">Text card 1</p>
                         <a href="#" class="btn btn-outline-primary">Edit</a>
                         <a href="#" class="btn btn-outline-danger">Delete</a>
+                        <button type="submit" class="btn btn-outline-warning">Restore</button>
                     </div>
                 </div>
             </div>
@@ -207,7 +206,50 @@ git checkout main
 git merge lesson_03
 git checkout -b lesson_04 main
 
+password
+# --- Дополнение к Уроку 3: Управление изменениями и откат ---
 
+# --- !!! ВНИМАНИЕ: Эти команды изменяют базу данных и файлы проекта.
+# --- Используйте их с осторожностью, особенно 'migrate:rollback' и ручное удаление данных,
+# --- так как они могут привести к потере данных. Рекомендуется использовать только в процессе разработки и обучения.
+
+# Запуск контейнеров Laravel Sail в фоновом режиме
+sail up -d
+
+# Доступ к базе данных через PhpMyAdmin
+# Адрес: http://localhost:8080
+# Пользователь: root
+# Пароль: password
+
+# --- Отмена создания модели и миграции ('Post') ---
+# Если необходимо полностью отменить создание модели и миграции,
+# например, в случае ошибки или для пересоздания:
+
+# 1. Отменить последнюю миграцию (удалить таблицу 'posts' из БД)
+sail artisan migrate:rollback
+
+# 2. Удалить файл миграции (замените на актуальное имя)
+rm database/migrations/YYYY_MM_DD_HHMMSS_create_posts_table.php
+
+# 3. Удалить файл модели
+rm app/Models/Post.php
+
+# --- Отмена сидера ('CreateSuperUserSeeder') ---
+# Если необходимо отменить действие сидера (удалить созданные им данные и сам файл):
+
+# 1. Вручную удалить данные из таблиц базы данных:
+#    - Из таблицы 'users': строку с 'admin@gmail.com'
+#    - Из таблицы 'roles': строку с 'super-user'
+#    - Из таблицы 'model_has_roles': запись, связывающую 'Admin' и 'super-user'
+#    Примечание: Для полного сброса базы данных используйте 'sail artisan migrate:fresh --seed'
+#    (удалит все таблицы, пересоздаст их и запустит все сидеры).
+
+# 2. Удалить файл сидера
+rm database/seeders/CreateSuperUserSeeder.php
+
+# --- Остановка проекта ---
+# Останавливает и выгружает все контейнеры Sail.
+sail down
 
 
 
