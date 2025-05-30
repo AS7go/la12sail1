@@ -206,7 +206,6 @@ git checkout main
 git merge lesson_03
 git checkout -b lesson_04 main
 
-password
 # --- Дополнение к Уроку 3: Управление изменениями и откат ---
 
 # --- !!! ВНИМАНИЕ: Эти команды изменяют базу данных и файлы проекта.
