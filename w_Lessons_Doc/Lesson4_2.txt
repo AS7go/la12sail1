@@ -534,7 +534,6 @@ class PostController extends Controller // Объявление класса Pos
 ==========================================================================
 
 
-
 --- редактируем файл resources/views/dashboard.blade.php для вывода постов
 
 <x-app-layout>
@@ -666,6 +665,65 @@ class PostController extends Controller // Объявление класса Pos
         </div>
     </div>
 </x-app-layout>
+
+=== Описание кода в файле resources/views/add-new-post.blade.php
+
+<x-app-layout> {{-- Открывающий тег Blade-компонента "app-layout". Этот компонент является основным макетом приложения и содержит 
+    общие элементы, такие как навигация, футер и т.п. --}}
+    <x-slot name="header"> {{-- Открывающий тег слота с именем "header". Слоты позволяют передавать специфический контент в 
+        определенные области компонента. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- Заголовок второго уровня с классами Tailwind CSS 
+            для стилизации текста. --}}
+            {{ __('Dashboard') }} {{-- Вывод локализованной строки "Dashboard". Функция `__('')` используется для перевода строк. --}}
+        </h2>
+    </x-slot> {{-- Закрывающий тег слота "header". --}}
+    <div class="container mt-6"> {{-- Контейнер Bootstrap/Tailwind CSS, ограничивающий ширину содержимого и добавляющий верхний отступ. --}}
+        <div class="row"> {{-- Строка сетки Bootstrap/Tailwind CSS. --}}
+            <div class="col-md-12"> {{-- Колонка сетки, занимающая всю ширину (12 из 12) на средних и больших экранах. --}}
+
+                {{-- Вывод статуса из сессии (например, сообщение об успешном сохранении). --}}
+                @if (session('status')) {{-- Директива Blade: если в сессии есть переменная 'status', то выполняем блок кода. --}}
+                    <div class="alert alert-success"> {{-- HTML-элемент для отображения сообщения об успехе, стилизованный Bootstrap-классом. --}}
+                        {{ session('status') }} {{-- Вывод значения переменной 'status' из сессии. --}}
+                    </div>
+                @endif {{-- Конец условного блока @if. --}}
+                
+
+                @if ($errors->any()) {{-- Директива Blade: если есть какие-либо ошибки валидации (Laravel автоматически помещает их в 
+                    переменную $errors). --}}
+                    <div class="alert alert-danger"> {{-- HTML-элемент для отображения ошибок, стилизованный Bootstrap-классом. --}}
+                        <ul> {{-- Открывающий тег неупорядоченного списка. --}}
+                            @foreach ($errors->all() as $error) {{-- Директива Blade: перебирает все ошибки валидации. --}}
+                                <li>{{ $error }}</li> {{-- Вывод каждой ошибки в виде элемента списка. --}}
+                            @endforeach {{-- Конец цикла @foreach. --}}
+                        </ul> {{-- Закрывающий тег неупорядоченного списка. --}}
+                    </div>
+                @endif {{-- Конец условного блока @if. --}}
+
+                <form method="POST" action="{{route('store-post')}}"> {{-- HTML-форма для отправки данных методом POST. Атрибут `action` 
+                    генерирует URL для маршрута 'store-post'. --}}
+                    @csrf {{-- Директива Blade: генерирует скрытое поле CSRF-токена для защиты от межсайтовой подделки запросов. 
+                        Обязательно для всех форм POST. --}}
+                    <div class="form-group"> {{-- Группа формы (вероятно, Bootstrap). --}}
+                        <label for="exampleInputEmail1">Title</label> {{-- Метка для поля ввода заголовка. --}}
+                        <input type="text" name="name" class="form-control" id="exampleInputEmail1"> {{-- Поле ввода текста для 
+                            заголовка поста. `name="name"` будет использоваться для доступа к данным в контроллере. --}}
+                    </div>
+                    <div class="form-group"> {{-- Группа формы для текстового поля. --}}
+                        <label for="exampleFormControlTextarea1">Text</label> {{-- Метка для текстовой области. --}}
+                        <textarea name="text" class="form-control mb-2" id="exampleFormControlTextarea1" rows="10"></textarea> 
+                        {{-- Текстовая область для содержимого поста. `name="text"` будет использоваться для доступа к данным в контроллере. --}}
+                    </div>
+                    <button type="submit" class="btn btn-outline-success mb-2">Add New Post</button> 
+                    {{-- Кнопка отправки формы, стилизованная Bootstrap. --}}
+                    {{-- <button type="submit" class="btn btn-outline-primary mb-2">Add New Post</button> --}} 
+                    {{-- Закомментированная кнопка, возможно, для альтернативного стиля или тестирования. --}}
+                </form> {{-- Закрывающий тег формы. --}}
+
+            </div> {{-- Закрывающий тег колонки. --}}
+        </div> {{-- Закрывающий тег строки. --}}
+    </div> {{-- Закрывающий тег контейнера. --}}
+</x-app-layout> {{-- Закрывающий тег компонента "app-layout". --}}
 
 
 --- добавляем маршрут для 'index' в routes/web.php и объединяем одинаковые (Route::get('/dashboard')
