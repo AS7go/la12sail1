@@ -1,0 +1,105 @@
+=== Урок4_1. Описание и где расположены уроки на GitHub. Документация.
+
+Привет!
+
+Чтобы оптимизировать ваше и моё время и упростить монтаж в будущий часовой ролик, из 
+дальнейших уроков будут исключены повторяющиеся элементы: 
+запуск/остановка проекта, а также приветствия и прощания. 
+
+Таким образом, 
+при просмотре — автоматически всем привет и приятного просмотра, 
+
+а после просмотра — всем пока. 
+
+Вас ждёт только основная информация по теме урока.
+
+Текст кода проекта (уроков) будет на GitHub:
+основной проект
+https://github.com/AS7go/la12sail1/tree/main
+
+Этапы разработки
+https://
+github.com/AS7go/la12sail1/tree/lesson_01
+
+https://
+github.com/AS7go/la12sail1/tree/lesson_02
+
+https://
+github.com/AS7go/la12sail1/tree/lesson_03
+...
+
+Описание уроков в 
+https://github.com/AS7go/la12sail1/tree/main/w_Lessons_Doc
+
+https://
+github.com/AS7go/la12sail1/tree/lesson_(номер_урока)
+
+=== Детали запуска и остановки проекта вы найдете в уроках 1, 2, 3 или ниже.
+
+- Открыть терминал и Перейти в директорию проекта.
+cd project1/la12sail1
+
+- Запустить VScode.
+code .
+
+- Запустить контейнеры
+sail up -d
+
+(работа с проектом)
+
+- По завершению остановить контейнеры
+sail down
+
+=== Ссылки на уже записанное видео:
+Урок 0: Laravel 12. Демонстрация готового проекта с Sail, Breeze, Spatie, phpMyAdmin
+https://youtu.be/0r2GpJHkSj0
+-
+
+Урок 1: Как посмотреть Версии ПО (Ubuntu, Docker, Composer, VScode) в терминале.
+https://youtu.be/bxLp_UPp-ig
+https://github.com/AS7go/la12sail1/tree/lesson_01
+
+Урок 2: Установка Laravel 12, Sail, Breeze, Spatie, phpMyAdmin. Запуск проекта.
+https://youtu.be/fGWh_uCqElU
+https://github.com/AS7go/la12sail1/tree/lesson_02
+
+Дополнение к Уроку 2 Установка, работа с локальным Git
+https://youtu.be/kaT9iA-HWik
+-
+
+Урок 3 Создание, выполнение миграции, seeder. Создание super-user (админ).
+https://youtu.be/J5V-3tQQ724
+https://github.com/AS7go/la12sail1/tree/lesson_03
+
+Дополнение к Уроку 3: Управление Изменениями - Откат Миграций и Удаление Сидеров (не обязательно)
+https://youtu.be/KenmiOnwh-Y
+-
+
+Дополнение 2 к Уроку 3 Экспорт, Импорт, SQL-запрос. Сравнение, удаление, восстановление Базы SQL.
+https://youtu.be/AQyD-yENthI
+-
+
+Остальные видео в разработке и будут записаны позже.
+
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ====
+============================================
+
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+	Laravel 12 csrf
+https://laravel.com/docs/12.x/csrf
+
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+	Стиль кнопок Bootstrap 5
+https://getbootstrap.com/docs/5.0/components/buttons/
+	Стили Форм 
+https://getbootstrap.com/docs/5.0/forms/form-control/
+
+

@@ -223,7 +223,7 @@ class PostController extends Controller
 --- добавляем, меняем маршрут в /routes/web.php
 
 use App\Http\Controllers\PostController; // Импортирует класс PostController, делая его доступным для 
-использования в текущем файле без указания полного пространства имен каждый раз.
+// использования в текущем файле без указания полного пространства имен каждый раз.
       ...
 
 // Route::view('add-post', 'add-new-post')->name('add-post');
@@ -618,7 +618,7 @@ class PostController extends Controller // Объявление класса Pos
 
 
 
---- в файле resources/views/add-new-post.blade.php добавляем обработку сообщений status, просто покажу
+--- в файле resources/views/add-new-post.blade.php добавляем обработку сообщений status
 
 <x-app-layout>
     <x-slot name="header">
