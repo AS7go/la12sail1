@@ -1,0 +1,703 @@
+=== Урок 4_2 Создание контроллера для Постов.
+SoftDeletes - мягкое удаление с возможностью восстановления.
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+    GitHub (урок 4):
+https://github.com/AS7go/la12sail1/tree/lesson_04_2
+
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+    Laravel 12 csrf
+https://laravel.com/docs/12.x/csrf
+
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+    Стиль кнопок Bootstrap 5
+https://getbootstrap.com/docs/5.0/components/buttons/
+    Стили Форм
+https://getbootstrap.com/docs/5.0/forms/form-control/
+
+--- Открыть терминал.
+--- Перейти в директорию проекта.
+cd project1/la12sail1
+
+--- Запустить VScode.
+code .
+
+--- Для тех, кто использует Git:
+--- Создайте новую ветку с именем lesson_04_2 и переключитесь на неё из текущей, командой
+
+git checkout -b lesson_04_2 main
+
+
+            --- ВНИМАНИЕ! Удаление ветки lesson_номер_урока. (Это дополнительная информация для 
+            ознакомления, делать не обязательно, но есть такая возможность)
+            "Безопасное" удаление, если ветка полностью замержена (слита в main)
+            git branch -d lesson_хх
+            (или git branch --delete lesson_хх)
+
+            "Принудительное" удаление.
+            git branch -D lesson_хх
+            (или git branch --delete --force lesson_хх)
+
+--- Для тех, кто не использует Git
+Просто продолжайте работать над вашим текущим проектом. Все изменения будут сохраняться в текущих файлах.
+
+--- Запустить контейнеры
+sail up -d
+
+--- Стиль кнопок Bootstrap 5 ссылка:
+https://getbootstrap.com/docs/5.0/components/buttons/
+
+--- Добавляем для визуализации в файле resources/views/dashboard.blade.php после </div> перед </x-app-layouts>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+                <button type="button" class="btn btn-outline-success mb-3">Add post</button>
+                <div class="card">
+                    <h5 class="card-header">card 1</h5>
+                    <div class="card-body">
+                        <h5 class="card-title">title card 1</h5>
+                        <p class="card-text mb-3">Text card 1</p>
+                        <a href="#" class="btn btn-outline-primary">Edit</a>
+                        <a href="#" class="btn btn-outline-danger">Delete</a>
+                        <button type="submit" class="btn btn-outline-warning">Restore</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- создаем форму для добавления постов resources/views/add-new-post.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                <form>
+                    @csrf
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Title</label>
+                        {{-- <input type="text" name="name" class="form-control" id="exampleInputEmail1" required> --}}
+                        <input type="text" name="name" class="form-control" id="exampleInputEmail1">
+                    </div>
+                    <div class="form-group">
+                        <label for="exampleFormControlTextarea1">Text</label>
+                        <textarea name="text" class="form-control mb-2" id="exampleFormControlTextarea1" rows="10"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-outline-success mb-2">Add Post</button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+=== Описание @csrf
+
+@csrf — это директива Blade (шаблонизатора Laravel), которая используется для генерации 
+скрытого поля формы, содержащего токен защиты от CSRF-атак.
+
+Расшифровка:
+
+CSRF: Cross-Site Request Forgery (Межсайтовая подделка запросов).
+
+
+===================
+
+
+--- в файле resources/views/dashboard.blade.php заменили кнопку на ссылку:
+
+    {{-- <button type="button" class="btn btn-outline-success mb-3">Add post</button> --}}
+    <a href="{{route('add-post')}}" class="btn btn-outline-success mb-3">Add post</a>
+
+
+--- добавляем маршрут в /routes/web.php
+
+Route::view('add-post', 'add-new-post')->name('add-post');
+
+
+=== Описание Route::view('add-post', 'add-new-post')->name('add-post');
+
+- `Route::view()`: Это метод, который позволяет определить маршрут, который будет отображать 
+конкретный шаблон (view) без необходимости создания контроллера.
+
+- `'add-post'`: Это первый параметр метода `view()`, который представляет собой 
+URI (Uniform Resource Identifier), по которому будет доступен этот маршрут. 
+В данном случае, маршрут будет доступен по адресу `/add-post`.
+
+- `'add-new-post'`: Это второй параметр метода `view()`, который указывает на имя шаблона (view), 
+который будет отображаться, когда пользователь перейдет по маршруту `/add-post`.
+
+- `->name('add-post')`: Это метод, который позволяет присвоить маршруту имя. Это имя можно 
+использовать для генерации URL или перенаправлений в коде. В данном случае, 
+маршруту `/add-post` присвоено имя `add-post`.
+
+В общем, эта строка означает, что когда пользователь посещает адрес `/add-post`, Laravel отобразит 
+шаблон `add-new-post.blade.php` (или другой с соответствующим расширением, в зависимости от настроек) 
+без вызова контроллера, и этому маршруту присвоено имя `add-post`, которое можно использовать для 
+его идентификации и генерации ссылок.
+
+Пример использования:
+
+- Для генерации URL: `route('add-post')` вернет `/add-post`.
+
+- Для перенаправления: `return redirect()->route('add-post');` перенаправит пользователя на `/add-post`.
+
+
+=== Описание процесса перехода, вызова шаблона из view
+
+* Нажатие на кнопку "Add post" в `dashboard.blade.php`
+* Вызов маршрута `'add-post'` из `web.php`
+* Переход на шаблон `'add-new-post'`
+* Отображение шаблона `'add-new-post.blade.php'`
+* Отображение шаблона с формой ввода нового поста для поста.
+
+=====================================================================================
+
+--- Проверяем в браузере
+
+--- создаем PostController
+
+sail artisan make:controller PostController
+
+--- Редактируем файл -> /app/Http/Controllers/PostController.php
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class PostController extends Controller
+{
+    public function create()
+    {
+        return view('add-new-post');
+    }
+}
+
+--- Описание маршрутов
+
++----------------------------------+--------+-------------+--------------+------------------------------------+
+|                                  | HTTP   | Метод       | Название     |                                    |
+|  Laravel Route                   | метод  | контроллера | маршрута     | Назначение                         |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+| Route::get('/')                  | GET    | view        | —            | Главная страница (welcome)         |
+| Route::get('/dashboard') ??      | GET    | view        | dashboard    | Панель управления (dashboard)      |
+| Route::get('/dashboard') ??      | GET    | index       | dashboard    | Список всех постов (объединить ??) |
+| Route::get('add-post')           | GET    | create      | add-post     | Форма создания поста               |
+| Route::post('store-post')        | POST   | store       | store-post   | Сохранение нового поста            |
+| Route::get('edit-post/{id}')     | GET    | edit        | edit-post    | Форма редактирования поста id      |
+| Route::put('update-post/{id}')   | PUT    | update      | update-post  | Обновление поста id                |
+| Route::delete('delete-post/{id}')| DELETE | destroy     | delete-post  | Удаление поста id                  |
+| Route::post('restore-post/{id}') | POST   | restore     | restore-post | Восстановление удалённого поста id |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+
+
+--- добавляем, меняем маршрут в /routes/web.php
+
+use App\Http\Controllers\PostController; // Импортирует класс PostController, делая его доступным для 
+использования в текущем файле без указания полного пространства имен каждый раз.
+      ...
+
+// Route::view('add-post', 'add-new-post')->name('add-post');
+Route::get('add-post', [PostController::class, 'create'])->name('add-post');
+
+Перенаправляем обработку поста методом 'create' в PostController
+
+--- в PostController добавляем метод store
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class PostController extends Controller
+{
+    public function create()
+    {
+        return view('add-new-post');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'text' => 'required|string',
+        ]);
+    }
+}
+
+=== Описание PostController
+
+<?php
+
+namespace App\Http\Controllers; // Объявление пространства имен для этого контроллера.
+                               // Указывает, что этот класс находится в директории app/Http/Controllers.
+
+use Illuminate\Http\Request; // Импортируем класс Request из фреймворка Laravel.
+                           // Класс Request используется для получения данных из входящего HTTP-запроса 
+                           // (например, данных из формы).
+
+class PostController extends Controller // Объявляем класс PostController.
+                                       // Он наследует базовый класс Controller, который предоставляет 
+                                       // основные функции для контроллеров Laravel.
+{
+
+    public function create() // Метод 'create' (создать).
+    {
+        return view('add-new-post'); // Возвращает Blade-представление с именем 'add-new-post'.
+                                    // Laravel будет искать файл resources/views/add-new-post.blade.php.
+                                    // Это представление, как правило, содержит HTML-форму для ввода 
+                                    // данных нового поста.
+    }
+
+    public function store(Request $request) // Метод 'store' (сохранить).
+                                          // Он принимает экземпляр класса Request в качестве аргумента,
+                                          // через который можно получить доступ ко всем данным, отправленным 
+                                          // из формы.
+    {
+        // Валидация входящих данных запроса.
+        // Метод validate() проверяет данные на соответствие заданным правилам.
+        // Если валидация не пройдена, Laravel автоматически перенаправит пользователя обратно
+        // на предыдущую страницу с сообщениями об ошибках.
+        $request->validate([
+            'name' => 'required|string|max:255', // Правила валидации для поля 'name' (название поста):
+                                                // 'required' - поле обязательно для заполнения.
+                                                // 'string' - значение должно быть строкой.
+                                                // 'max:255' - максимальная длина строки 255 символов.
+
+            'text' => 'required|string',       // Правила валидации для поля 'text' (содержание поста):
+                                                // 'required' - поле обязательно для заполнения.
+                                                // 'string' - значение должно быть строкой.
+        ]);
+
+
+    }
+}
+
+=============================================================================
+
+
+--- доработали в resources/views/add-new-post.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                @if ($errors->any())
+                <div class="alert alert-danger">
+                    <ul>
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                @endif
+
+                <form method="POST" action="{{route('store-post')}}">
+                    @csrf
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Title</label>
+                        <input type="text" name="name" class="form-control" id="exampleInputEmail1">
+                    </div>
+                    <div class="form-group">
+                        <label for="exampleFormControlTextarea1">Text</label>
+                        <textarea name="text" class="form-control mb-2" id="exampleFormControlTextarea1" rows="10"></textarea>
+                    </div>
+                        <button type="submit" class="btn btn-outline-success mb-2">Add Post</button>
+                        // <button type="submit" class="btn btn-outline-primary mb-2">Add Post</button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+
+--- добавили Route::post('store-post'... в routes/web.php
+
+<?php
+
+...
+use App\Http\Controllers\PostController; // добавили
+...
+
+Route::get('add-post', [PostController::class, 'create'])->name('add-post'); // добавили
+Route::post('store-post', [PostController::class, 'store'])->name('store-post'); // добавили
+
+
+=== Описание строк в routes/web.php
+
+Route::get('add-post', [PostController::class, 'create'])->name('add-post');
+// Определяет GET-маршрут. Когда пользователь заходит по адресу '/add-post' (например, через ссылку в браузере),
+// Laravel вызовет метод 'create' в классе PostController.
+// Этот маршрут также получает имя 'add-post', что позволяет удобно ссылаться на него в коде 
+// (например, route('add-post'))
+// для генерации URL. Обычно метод 'create' используется для отображения формы создания новой записи.
+
+Route::post('store-post', [PostController::class, 'store'])->name('store-post');
+// Определяет POST-маршрут. Когда пользователь отправляет данные формы (например, нажимает кнопку "Отправить")
+// на адрес '/store-post', Laravel вызовет метод 'store' в классе PostController.
+// Этот маршрут также получает имя 'store-post'. Метод 'store' обычно используется для обработки
+// отправленных данных формы и сохранения их в базе данных.
+
+====================================================================================
+
+--- Редактируем модель в файле - app/Models/Post.php - это сделали в прошлом уроке
+
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Post extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'text',
+    ];
+}
+
+=== Описание app/Models/Post.php
+
+<?php
+
+namespace App\Models; // Объявление пространства имен для модели. Указывает, что этот файл является частью директории 'app/Models'.
+
+use Illuminate\Database\Eloquent\Factories\HasFactory; // Импорт трейта HasFactory. Используется для создания фабрик 
+    // моделей, что удобно для генерации тестовых данных (seeders) или фабрик для тестов.
+use Illuminate\Database\Eloquent\Model; // Импорт базового класса Model из Eloquent ORM. Все модели Laravel должны наследовать этот класс.
+
+class Post extends Model // Объявление класса Post, который наследует Illuminate\Database\Eloquent\Model.
+{
+    use HasFactory; // Использование трейта HasFactory в модели Post.
+
+    protected $fillable = [ // Защищенное свойство $fillable. Это "белый список" атрибутов (полей базы данных),
+                            // которые разрешено массово заполнять (mass assignable) с использованием методов create(), update() и т.д.
+                            // Массовое заполнение означает передачу массива данных для создания/обновления записи.
+                            // Это мера безопасности, предотвращающая уязвимость "Mass Assignment".
+        'name',             // Разрешаем массовое заполнение поля 'name' в таблице 'posts'.
+        'text',             // Разрешаем массовое заполнение поля 'text' в таблице 'posts'.
+    ];
+}
+
+=====================================================================================
+
+--- добавляем метод 'index' в PostController для просмотра всех постов в 'dashboard'
+--- редактруем метод 'store' - запись поста в базу данных и вывод сообщения 'Post added!'
+--- в файле app/Http/Controllers/PostController.php
+
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Post;
+use Illuminate\Http\Request;
+
+class PostController extends Controller
+{
+    public function index()
+    {
+        $posts = Post::orderBy('created_at', 'desc')->get();
+
+        return view('dashboard', compact('posts'));
+    }
+
+    public function create()
+    {
+        return view('add-new-post');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'text' => 'required|string',
+        ]);
+
+        Post::create($request->all());
+
+        return redirect()->back()->with('status', 'Post added!');
+        // return redirect()->back()->with('success', 'Post added!');
+
+    }
+}
+
+=== Описание app/Http/Controllers/PostController.php
+
+<?php
+
+namespace App\Http\Controllers; // Объявление пространства имен для контроллера. Указывает, что этот файл 
+    // находится в директории 'app/Http/Controllers'.
+
+use App\Models\Post; // Импорт модели Post. Это позволяет использовать модель Post в этом контроллере 
+    // для взаимодействия с таблицей 'posts' в базе данных.
+use Illuminate\Http\Request; // Импорт класса Request. Этот класс используется для работы с входящими 
+    // HTTP-запросами (получение данных формы, файлов и т.д.).
+
+class PostController extends Controller // Объявление класса PostController, который наследует базовый 
+    // класс Controller.
+{
+
+    public function index() // Метод 'index' - стандартное название для метода, который отображает 
+        // список всех ресурсов (в данном случае, постов).
+    {
+        // Получаем все посты из базы данных, сортируя их по дате создания в обратном порядке (от новых к старым).
+        // Метод 'get()' выполняет запрос и возвращает коллекцию моделей.
+        $posts = Post::orderBy('created_at', 'desc')->get();
+
+        // Возвращаем представление (Blade-шаблон) с именем 'dashboard'.
+        // compact('posts') - это удобный способ передать переменную $posts в представление.
+        // compact() в PHP создает ассоциативный массив, используя имена переменных (строки) как ключи и их 
+        // значения как значения. Удобно для передачи нескольких переменных в одном массиве, особенно в шаблоны.
+        // В представлении 'dashboard.blade.php' эта переменная будет доступна как $posts.
+        return view('dashboard', compact('posts'));
+    }
+
+    public function create() // Метод 'create' - стандартное название для метода, который отображает форму для 
+        // создания нового ресурса.
+    {
+        // Возвращаем представление (Blade-шаблон) с именем 'add-new-post'.
+        // Это представление будет содержать HTML-форму для ввода данных нового поста.
+        return view('add-new-post');
+    }
+
+    public function store(Request $request) // Метод 'store' - стандартное название для метода, который 
+        // обрабатывает отправку формы и сохраняет новые данные.
+        // Он принимает объект Request, который содержит все данные, отправленные пользователем.
+    {
+        // Валидация входящих данных запроса.
+        // Laravel автоматически перенаправит пользователя обратно на форму с ошибками, если валидация не пройдена.
+        $request->validate([
+            'name' => 'required|string|max:255', // Поле 'name' обязательно, должно быть строкой, максимум 255 символов.
+            'text' => 'required|string',         // Поле 'text' обязательно, должно быть строкой.
+        ]);
+
+        // Создаем новую запись в таблице 'posts' с использованием данных из запроса.
+        // Post::create() - это метод Eloquent для создания новой записи.
+        // $request->all() - возвращает массив всех данных из запроса.
+        // Для работы Post::create($request->all()) необходимо, чтобы поля 'name' и 'text' были в свойстве 
+        // $fillable модели Post.
+        Post::create($request->all());
+
+        // Перенаправляем пользователя обратно на предыдущую страницу (обычно на форму, откуда пришел запрос).
+        // ->with('status', 'Post added!') - добавляет "флеш-сообщение" в сессию,
+        // которое будет доступно в представлении один раз (обычно для вывода уведомления об успешном действии).
+        return redirect()->back()->with('status', 'Post added!');
+        // return redirect()->back()->with('success', 'Post added!');
+            // Перенаправляет пользователя на предыдущую страницу (откуда пришел запрос)
+            // и добавляет флеш-сообщение (flash message) 'success' со значением 'Post added!'.
+            // Флеш-сообщения доступны только в течение следующего HTTP-запроса,
+            // что удобно для уведомлений пользователя об успешном выполнении действия.
+
+    }
+}
+
+==========================================================================
+
+
+
+--- редактируем файл resources/views/dashboard.blade.php для вывода постов
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+                <a href="{{route('add-post')}}" class="btn btn-outline-success mb-3">Add post</a>
+
+                @foreach ($posts as $post)
+                    <div class="card mb-4">
+                        <h5 class="card-header">{{$post->name}}</h5>
+                        <div class="card-body">
+                            <p>{{$post->created_at}}</p>
+                            <p>{{$post->text}}</p>
+                            <a href="#" class="btn btn-outline-primary">Edit</a>
+                            <a href="#" class="btn btn-outline-danger">Delete</a>
+                            <button type="submit" class="btn btn-outline-warning">Restore</button>
+
+                        </div>
+                    </div>
+                @endforeach
+
+            </div>
+        </div>
+    </div>
+
+
+</x-app-layout>
+
+
+=== Описание кода в файле resources/views/dashboard.blade.php
+
+<x-app-layout> {{-- Компонент Blade (обычно определенный в 'resources/views/layouts/app.blade.php'),
+                    который предоставляет общую структуру страницы (например, навигацию, шапку, футер). --}}
+    <x-slot name="header"> {{-- Слот с именем 'header' для компонента 'x-app-layout'.
+                            Содержимое этого слота будет вставлено в соответствующее место в 'app.blade.php'. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }} {{-- Вывод локализованной строки 'Dashboard'. Функция '__()' используется для интернационализации. --}}
+        </h2>
+    </x-slot>
+
+    <div class="container mt-6"> {{-- Bootstrap-класс для контейнера с отступом сверху. --}}
+        <div class="row"> {{-- Bootstrap-класс для создания строки сетки. --}}
+            <div class="col-md-12"> {{-- Bootstrap-класс для колонки, занимающей всю ширину (12 колонок) на средних и больших экранах. --}}
+
+                <a href="{{route('add-post')}}" class="btn btn-outline-success mb-3">Add post</a> 
+                    {{-- Ссылка (кнопка) для перехода на страницу добавления нового поста.
+                    route('add-post') генерирует URL по имени маршрута.
+                    mb-3 добавляет нижний отступ. --}}
+
+                @foreach ($posts as $post) {{-- Цикл Blade для итерации по коллекции $posts, переданной в это представление из контроллера.
+                                          Каждая итерация представляет собой один пост. --}}
+                    <div class="card mb-4"> {{-- Карточка Bootstrap для отображения каждого поста. mb-4 добавляет нижний отступ. --}}
+                        <h5 class="card-header">{{$post->name}}</h5> {{-- Заголовок карточки, отображающий имя поста. --}}
+                        <div class="card-body"> {{-- Тело карточки, содержащее основное содержимое поста. --}}
+                            <p>{{$post->created_at}}</p> {{-- Параграф, отображающий дату создания поста. --}}
+                            <p>{{$post->text}}</p> {{-- Параграф, отображающий текст поста. --}}
+                            <a href="#" class="btn btn-outline-primary">Edit</a> {{-- Кнопка "Edit" (пока без реальной ссылки, href="#"). --}}
+                            <a href="#" class="btn btn-outline-danger">Delete</a> {{-- Кнопка "Delete" (пока без реальной ссылки, href="#"). --}}
+                            <button type="submit" class="btn btn-outline-warning">Restore</button> 
+                            {{-- Кнопка "Restore" пока не привязана к форме или действию --}}
+
+                        </div>
+                    </div>
+                @endforeach {{-- Конец цикла foreach. --}}
+
+            </div>
+        </div>
+    </div>
+
+
+</x-app-layout> {{-- Закрывающий тег для компонента Blade. --}}
+
+========================================================================================
+
+
+
+--- в файле resources/views/add-new-post.blade.php добавляем обработку сообщений status, просто покажу
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                {{-- Вывод статуса --}}
+                @if (session('status'))
+                    <div class="alert alert-success">
+                        {{ session('status') }}
+                    </div>
+                @endif
+                
+
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{route('store-post')}}">
+                    @csrf
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Title</label>
+                        <input type="text" name="name" class="form-control" id="exampleInputEmail1">
+                    </div>
+                    <div class="form-group">
+                        <label for="exampleFormControlTextarea1">Text</label>
+                        <textarea name="text" class="form-control mb-2" id="exampleFormControlTextarea1" rows="10"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-outline-success mb-2">Add New Post</button>
+                    {{-- <button type="submit" class="btn btn-outline-primary mb-2">Add New Post</button> --}}
+                </form>
+
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+
+--- добавляем маршрут для 'index' в routes/web.php и объединяем одинаковые (Route::get('/dashboard')
+--- иначе будет конфликт одинаковых маршрутов
+
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->middleware(['auth', 'verified'])->name('dashboard');
+
+    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard');
+
+--- Получаем маршрут для '/dashboard'
+
+    Laravel сначала проверит, аутентифицирован ли пользователь и подтвердил ли он свою электронную почту.
+    Если обе проверки пройдены, будет вызван метод index() контроллера PostController.
+    Весь этот маршрут можно ссылаться по имени 'dashboard' в вашем приложении.
+
+Route::get('/dashboard', [PostController::class, 'index'])
+    ->middleware(['auth', 'verified']) // Применяем middleware к маршруту контроллера
+    ->name('dashboard');
+
+
+--- Git
+
+git add .
+git commit -m 'add new post PostController'
+
+git checkout main
+git merge lesson_04_2
+
+git checkout -b lesson_04_3 main
+
+history
+
+=====================================================================================

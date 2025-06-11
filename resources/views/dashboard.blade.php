@@ -18,17 +18,22 @@
     <div class="container mt-6">
         <div class="row">
             <div class="col-md-12">
-                <button type="button" class="btn btn-outline-success mb-3">Add post</button>
-                <div class="card">
-                    <h5 class="card-header">card 1</h5>
-                    <div class="card-body">
-                        <h5 class="card-title">title card 1</h5>
-                        <p class="card-text mb-3">Text card 1</p>
-                        <a href="#" class="btn btn-outline-primary">Edit</a>
-                        <a href="#" class="btn btn-outline-danger">Delete</a>
-                        <button type="submit" class="btn btn-outline-warning">Restore</button>
+                {{-- <button type="button" class="btn btn-outline-success mb-3">Add post</button> --}}
+                <a href="{{route('add-post')}}" class="btn btn-outline-success mb-3">Add post</a>
+
+                @foreach ($posts as $post)
+                    <div class="card">
+                        <h5 class="card-header">{{$post->name}}</h5>
+                        <div class="card-body">
+                            <p>{{$post->created_at}}</p>
+                            <p>{{$post->text}}</p>
+                            <a href="#" class="btn btn-outline-primary">Edit</a>
+                            <a href="#" class="btn btn-outline-danger">Delete</a>
+                            <button type="submit" class="btn btn-outline-warning">Restore</button>
+                        </div>
                     </div>
-                </div>
+                @endforeach
+
             </div>
         </div>
     </div>
