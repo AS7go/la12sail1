@@ -27,7 +27,9 @@
                         <div class="card-body">
                             <p>{{$post->created_at}}</p>
                             <p>{{$post->text}}</p>
-                            <a href="#" class="btn btn-outline-primary">Edit</a>
+                            {{-- <a href="#" class="btn btn-outline-primary">Edit</a> --}}
+                            <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
+
                             <a href="#" class="btn btn-outline-danger">Delete</a>
                             <button type="submit" class="btn btn-outline-warning">Restore</button>
                         </div>

@@ -1,0 +1,318 @@
+=== Урок 4_3 Добавление методов Edit, Update в PostController.
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+    GitHub (урок 4_3):
+https://github.com/AS7go/la12sail1/tree/lesson_04_3
+
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+    Laravel 12 csrf
+https://laravel.com/docs/12.x/csrf
+
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+    Стиль кнопок Bootstrap 5
+https://getbootstrap.com/docs/5.0/components/buttons/
+    Стили Форм
+https://getbootstrap.com/docs/5.0/forms/form-control/
+
+--- Открыть терминал.
+--- Перейти в директорию проекта.
+cd project1/la12sail1
+
+--- Запустить VScode.
+code .
+
+--- Запустить контейнеры
+sail up -d
+
+===============================================================================================================
+
+=== Описание маршрутов
+
++----------------------------------+--------+-------------+--------------+------------------------------------+
+|                                  | HTTP   | Метод       | Название     |                                    |
+|  Laravel Route                   | метод  | контроллера | маршрута     | Назначение                         |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+| Route::get('/')                  | GET    | view        | —            | Главная страница (welcome)         |
+| Route::get('/dashboard') ??      | GET    | view        | dashboard    | Панель управления (dashboard)      |
+| Route::get('/dashboard') ??      | GET    | index       | dashboard    | Список всех постов (объединить ??) |
+| Route::get('add-post')           | GET    | create      | add-post     | Форма создания поста               |
+| Route::post('store-post')        | POST   | store       | store-post   | Сохранение нового поста            |
+| Route::get('edit-post/{id}')     | GET    | edit        | edit-post    | Форма редактирования поста id      |
+| Route::put('update-post/{id}')   | PUT    | update      | update-post  | Обновление поста id                |
+| Route::delete('delete-post/{id}')| DELETE | destroy     | delete-post  | Удаление поста id                  |
+| Route::post('restore-post/{id}') | POST   | restore     | restore-post | Восстановление удалённого поста id |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+
+
+--- Добавляем метод edit и update в app/Http/Controllers/PostController.php
+
+
+    public function edit($id)
+    {
+        $post = Post::findOrFail($id);
+
+        return view('edit-new-post', compact(['post']));
+    }
+
+    public function update($id, Request $request)
+    {
+        $request->validate([
+            'name'=>'required|string|max:255',
+            'text'=>'required|string',
+        ]);
+
+        $post = Post::findOrFail($id);
+        $post->update($request->all());
+
+        return redirect()->back()->with('status', 'Post updated!');
+
+    }
+
+=== Описание методов index, create и store в app/Http/Controllers/PostController.php
+
+public function index() // Метод для отображения списка всех постов.
+    {
+        // Получаем все посты из базы данных, сортируя их по дате создания в убывающем порядке.
+        $posts = Post::orderBy('created_at', 'desc')->get();
+
+        // Возвращаем представление 'dashboard' и передаем в него полученные посты.
+        return view('dashboard', compact('posts'));
+    }
+
+    public function create() // Метод для отображения формы создания нового поста.
+    {
+        // Просто возвращаем представление 'add-new-post', которое содержит форму.
+        return view('add-new-post');
+    }
+
+    public function store(Request $request) // Метод для сохранения нового поста в базе данных.
+    {
+        // Выполняем валидацию входящих данных из запроса.
+        // Поле 'name' должно быть обязательным, строкой, не длиннее 255 символов.
+        // Поле 'text' должно быть обязательным, строкой.
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'text' => 'required|string',
+        ]);
+
+        // Создаем новую запись в таблице 'posts' базы данных, используя все валидированные данные из запроса.
+        Post::create($request->all());
+
+        // Перенаправляем пользователя обратно на предыдущую страницу
+        // и добавляем сообщение о статусе 'Post added!' в сессию.
+        return redirect()->back()->with('status', 'Post added!');
+        // Альтернативный вариант с использованием 'success' вместо 'status', закомментирован.
+        // return redirect()->back()->with('success', 'Post added!');
+    }
+
+=== Описание методов edit и update в app/Http/Controllers/PostController.php
+
+    public function edit($id) // отвечает за отображение формы редактирования для существующего поста.
+    {
+        $post = Post::findOrFail($id); // ищет пост в базе данных по переданному $id
+
+        return view('edit-new-post', compact(['post'])); // загружает edit-new-post.blade.php и передает в него объект $post
+    }
+
+    public function update($id, Request $request) //Этот метод отвечает за обработку отправленных данных формы
+                                                  //и обновление существующего поста в базе данных.
+    {
+        $request->validate([ // проверяет, что поля name и text заполнены и соответствуют типу (длина name меньше 255)
+            'name'=>'required|string|max:255',
+            'text'=>'required|string',
+        ]);
+
+        $post = Post::findOrFail($id); //Снова находит пост по $id, чтобы убедиться, что он существует и можно его обновить.
+        $post->update($request->all()); // Обновляет атрибуты найденного поста данными из запроса.
+            // Метод update() в Eloquent ORM принимает массив данных и обновляет соответствующие поля в базе данных.
+            // т. е. передает заполненные поля формы в таблицу Posts
+
+        return redirect()->back()->with('status', 'Post updated!');
+            // Перенаправляем пользователя обратно на предыдущую страницу, с которой был сделан запрос,
+            // и добавляем сообщение о статусе 'Post updated!' в сессию.
+            // Это сообщение может быть отображено в представлении (например, в 'dashboard' или 'edit-new-post').
+
+    }
+
+=======================================================================================
+
+--- Могут ли они существовать по отдельности edit и update?
+
+Если есть только edit():
+Пользователь сможет перейти на страницу редактирования и увидеть форму с текущими данными поста,
+
+НО не сможет сохранить изменения, потому что не будет метода (update), который обрабатывал бы
+отправку формы и обновлял данные в базе. Форма просто никуда не отправится или вызовет ошибку,
+если нет соответствующего метода-update и маршрута.
+
+
+--- добавляем маршрут в /routes/web.php
+
+Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post');
+Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post');
+
+
+=== Описание маршрутов
+
+Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post');
+// Определяет GET-маршрут для отображения формы редактирования поста.
+// При обращении к '/edit-post/{id}' (где {id} - идентификатор поста)
+// вызывается метод 'edit' контроллера 'PostController'.
+// Маршруту присваивается имя 'edit-post' для удобства генерации URL.
+
+Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post');
+// Определяет PUT-маршрут для обработки отправленной формы редактирования поста.
+// При отправке PUT-запроса на '/update-post/{id}'
+// вызывается метод 'update' контроллера 'PostController',
+// который обновляет данные поста в базе данных.
+// Маршруту присваивается имя 'update-post'.
+// (Важно: HTML-формы не поддерживают PUT напрямую,
+// Laravel эмулирует его через POST с @method('PUT')).
+=======================================================================================
+
+
+--- создаем файл представление resources/views/edit-new-post.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                {{-- Принцип DRY (Don't Repeat Yourself - Не повторяйся) --}}
+
+                {{-- Вывод статуса --}}
+                @if (session('status'))
+                    <div class="alert alert-success">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                {{-- Вывод ошибок --}}
+                @if ($errors->any())
+                    <div class="alert alert-danger mt-4">
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+
+                <form method="post" action="{{route('update-post', $post->id)}}">
+                    @csrf
+                    @method('PUT')
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Title</label>
+                        <input type="text" name="name" value="{{$post->name}}" class="form-control" id="exampleInputEmail1 {{-- required --}}">
+                    </div>
+                    <div class="form-group">
+                        <label for="exampleFormControlTextarea1">Text</label>
+                        <textarea name="text" class="form-control mb-2" id="exampleFormControlTextarea1" rows="10">{{$post->text}}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-outline-success mb-2">Edit Post</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+
+=== Описание файла resources/views/edit-new-post.blade.php
+
+<x-app-layout> {{-- Открывающий тег Blade-компонента "app-layout", используемого как основной макет страницы. --}}
+    <x-slot name="header"> {{-- Слот с именем "header", предназначенный для передачи содержимого в заголовок макета. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- Заголовок страницы, стилизованный Tailwind CSS. --}}
+            {{ __('Dashboard') }} {{-- Выводит локализованную строку "Dashboard". --}}
+        </h2>
+    </x-slot> {{-- Закрывающий тег слота "header". --}}
+    <div class="container mt-6"> {{-- Bootstrap-контейнер для центрирования и ограничения ширины содержимого, с верхним отступом. --}}
+        <div class="row"> {{-- Строка Bootstrap-сетки. --}}
+            <div class="col-md-12"> {{-- Колонка Bootstrap-сетки, занимающая всю ширину на средних и больших экранах. --}}
+
+                {{-- Принцип DRY (Don't Repeat Yourself - Не повторяйся).
+                     Эти блоки для вывода статуса/успеха и ошибок обычно выносятся в главный макет (app.blade.php)
+                     для централизованной обработки и согласованного отображения по всему приложению. --}}
+
+                {{-- Вывод статуса из сессии (например, сообщение об успешном действии, переданное из контроллера). --}}
+                @if (session('status')) {{-- Проверяет, существует ли переменная 'status' в сессии. --}}
+                    <div class="alert alert-success"> {{-- Отображает зеленую плашку (Bootstrap) для сообщения об успехе. --}}
+                        {{ session('status') }} {{-- Выводит значение переменной 'status'. --}}
+                    </div>
+                @endif {{-- Конец условного блока. --}}
+
+                {{-- Вывод ошибок валидации (если таковые имеются после отправки формы). --}}
+                @if ($errors->any()) {{-- Проверяет, существуют ли какие-либо ошибки валидации. --}}
+                    <div class="alert alert-danger mt-4"> {{-- Отображает красную плашку (Bootstrap) для ошибок, с верхним отступом. --}}
+                        <ul> {{-- Открывающий тег неупорядоченного списка для каждой ошибки. --}}
+                            @foreach ($errors->all() as $error) {{-- Перебирает все ошибки валидации. --}}
+                                <li>{{ $error }}</li> {{-- Выводит каждую ошибку в виде элемента списка. --}}
+                            @endforeach {{-- Конец цикла foreach. --}}
+                        </ul> {{-- Закрывающий тег неупорядоченного списка. --}}
+                    </div>
+                @endif {{-- Конец условного блока. --}}
+
+                {{-- Форма для редактирования существующего поста. --}}
+                <form method="post" action="{{route('update-post', $post->id)}}"> {{-- HTML-форма для отправки данных. --}}
+                    @csrf {{-- Директива Blade: генерирует скрытое поле CSRF-токена для защиты от межсайтовой подделки запросов. --}}
+                    @method('PUT') {{-- Директива Blade: эмулирует HTTP-метод PUT. HTML-формы по умолчанию поддерживают только GET и POST, 
+                        но для RESTful обновления обычно используется PUT/PATCH. --}}
+                    <div class="form-group"> {{-- Группа формы для поля "Title". --}}
+                        <label for="exampleInputEmail1">Title</label> {{-- Метка для поля ввода заголовка. --}}
+                        {{-- Поле ввода для заголовка поста. `value="{{$post->name}}"` предзаполняет поле текущим заголовком поста. --}}
+                        <input type="text" name="name" value="{{$post->name}}" class="form-control" id="exampleInputEmail1 {{-- required --}}">
+                    </div>
+                    <div class="form-group"> {{-- Группа формы для поля "Text". --}}
+                        <label for="exampleFormControlTextarea1">Text</label> {{-- Метка для текстовой области. --}}
+                        {{-- Текстовая область для содержимого поста. `$post->text` предзаполняет область текущим текстом поста. --}}
+                        <textarea name="text" class="form-control mb-2" id="exampleFormControlTextarea1" rows="10">{{$post->text}}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-outline-success mb-2">Edit Post</button> {{-- Кнопка отправки формы для сохранения 
+                        изменений. --}}
+                </form> {{-- Закрывающий тег формы. --}}
+            </div> {{-- Закрывающий тег колонки. --}}
+        </div> {{-- Закрывающий тег строки. --}}
+    </div> {{-- Закрывающий тег контейнера. --}}
+</x-app-layout> {{-- Закрывающий тег компонента "app-layout". --}}
+
+==================================================================
+
+
+--- Редактируем кнопку Edit в файле resources/views/dashboard.blade.php
+
+<a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
+
+=== Описание кнопки Edit
+
+<a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
+{{-- Создаёт HTML-ссылку (кнопку "Edit").
+     `route('edit-post', $post->id)` генерирует URL для маршрута с именем 'edit-post',
+     передавая ID конкретного поста (`$post->id`) в качестве параметра.
+     Пользователь будет перенаправлен на форму редактирования этого поста. --}}
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+=======================================================================================
+

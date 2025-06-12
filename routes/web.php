@@ -22,6 +22,8 @@ Route::get('/dashboard', [PostController::class, 'index'])
 Route::get('add-post', [PostController::class, 'create'])->name('add-post');
 Route::post('store-post', [PostController::class, 'store'])->name('store-post'); // добавили
 
+Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post');
+Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post');
 
 
 Route::middleware('auth')->group(function () {

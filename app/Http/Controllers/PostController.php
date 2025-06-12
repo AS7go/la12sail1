@@ -31,4 +31,25 @@ class PostController extends Controller
         return redirect()->back()->with('status', 'Post added!');
         // return redirect()->back()->with('success', 'Post added!');
     }
+
+    public function edit($id)
+    {
+        $post = Post::findOrFail($id);
+
+        return view('edit-new-post', compact(['post']));
+    }
+
+    public function update($id, Request $request)
+    {
+        $request->validate([
+            'name'=>'required|string|max:255',
+            'text'=>'required|string',
+        ]);
+
+        $post = Post::findOrFail($id);
+        $post->update($request->all());
+
+        return redirect()->back()->with('status', 'Post updated!');
+
+    }
 }
