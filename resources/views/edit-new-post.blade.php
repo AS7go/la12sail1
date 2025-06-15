@@ -8,27 +8,6 @@
         <div class="row">
             <div class="col-md-12">
 
-                {{-- Принцип DRY (Don't Repeat Yourself - Не повторяйся) --}}
-
-                {{-- Вывод статуса --}}
-                @if (session('status'))
-                    <div class="alert alert-success">
-                        {{ session('status') }}
-                    </div>
-                @endif
-
-                {{-- Вывод ошибок --}}
-                @if ($errors->any())
-                    <div class="alert alert-danger mt-4">
-                        <ul>
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-
                 <form method="post" action="{{route('update-post', $post->id)}}">
                     @csrf
                     @method('PUT')

@@ -30,10 +30,46 @@
                 </header>
             @endisset
 
+
             <!-- Page Content -->
             <main>
-                {{ $slot }}
+                <!-- Добавили обработку success, status и ошибок валидации -->
+                <div class="py-4">
+                    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+
+                        {{-- Вывод status --}}
+                        @if (session('status'))
+                            {{-- <div class="alert alert-success"> --}}
+                            <div class="alert alert-info">
+                                {{ session('status') }}
+                            </div>
+                        @endif
+                    
+                        {{-- Вывод success --}}
+                        @if (session('success'))
+                            <div class="alert alert-success">
+                                {{ session('success') }}
+                            </div>
+                        @endif
+
+                        {{-- Вывод ошибок валидации --}}
+                        @if ($errors->any())
+                            <div class="alert alert-danger mt-4">
+                                <ul>
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        {{ $slot }}
+                    </div>
+                </div>
+
             </main>
+
+
         </div>
     </body>
 </html>

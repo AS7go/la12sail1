@@ -26,10 +26,12 @@ class PostController extends Controller
             'text' => 'required|string',
         ]);
 
-        Post::create($request->all());
+        $post = Post::create($request->all());
 
-        return redirect()->back()->with('status', 'Post added!');
+        // return redirect()->back()->with('status', 'Post added!');
         // return redirect()->back()->with('success', 'Post added!');
+        return redirect()->route('dashboard')->with('success', "Post ({$post->name}) added!"); // !Кавычки "" а не ''
+
     }
 
     public function edit($id)
@@ -49,7 +51,9 @@ class PostController extends Controller
         $post = Post::findOrFail($id);
         $post->update($request->all());
 
-        return redirect()->back()->with('status', 'Post updated!');
+        // return redirect()->back()->with('status', "Post ({$post->name})updated!");
+        return redirect()->route('dashboard')->with('success', "Post ({$post->name}) updated!");
+
 
     }
 }
