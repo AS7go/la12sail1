@@ -1,4 +1,4 @@
-=== Урок 4_5 Добавление-редактирование методов index, destroy (delete), restore. Обработка SoftDeletes.
+=== Урок 4_5 Добавление-редактирование методов index, destroy (delete), restore, forceDelete. Обработка SoftDeletes.
 
 ============================================
 === Laravel 12 === ~/project1/la12sail1 ===
