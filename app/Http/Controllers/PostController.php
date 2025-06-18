@@ -28,9 +28,7 @@ class PostController extends Controller
 
         $post = Post::create($request->all());
 
-        // return redirect()->back()->with('status', 'Post added!');
-        // return redirect()->back()->with('success', 'Post added!');
-        return redirect()->route('dashboard')->with('success', "Post ({$post->name}) added!"); // !Кавычки "" а не ''
+        return redirect()->route('dashboard')->with('success', "Post ({$post->name}) added!");
 
     }
 
@@ -51,9 +49,8 @@ class PostController extends Controller
         $post = Post::findOrFail($id);
         $post->update($request->all());
 
-        // return redirect()->back()->with('status', "Post ({$post->name})updated!");
         return redirect()->route('dashboard')->with('success', "Post ({$post->name}) updated!");
-
-
     }
+
+    
 }

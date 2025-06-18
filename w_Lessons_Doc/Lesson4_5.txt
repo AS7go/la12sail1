@@ -1,0 +1,478 @@
+=== Урок 4_5 Добавление-редактирование методов index, destroy (delete), restore. Обработка SoftDeletes.
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+    GitHub (урок 4_5):
+https://github.com/AS7go/la12sail1/tree/lesson_04_5
+
+    GitHub Текстовое Описание урока 
+https://github.com/AS7go/la12sail1/blob/lesson_04_4/w_Lessons_Doc/Lesson4_5.txt
+
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+    Laravel 12 csrf
+https://laravel.com/docs/12.x/csrf
+
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+    Стиль кнопок Bootstrap 5
+https://getbootstrap.com/docs/5.0/components/buttons/
+    Стили Форм
+https://getbootstrap.com/docs/5.0/forms/form-control/
+
+--- Открыть терминал.
+--- Перейти в директорию проекта.
+cd project1/la12sail1
+
+--- Запустить VScode.
+code .
+
+--- Запустить контейнеры
+sail up -d
+
+--- Работаем с проектом
+
+--- Перед закрытием проекта желательно остановить контейнеры:
+sail down
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- Команды Git
+
+хх - номер урока, например (lesson_04_5)
+	// Добавляет все измененные файлы в индекс (staging area) для следующего коммита.
+git add .
+
+	// Создает новый коммит с указанным комментарием. Комментарий должен описывать изменения.
+git commit -m 'your comment'
+
+	// Переключает текущую ветку на ветку 'main'. Все последующие изменения будут вноситься в эту ветку.
+git checkout main
+
+	// Объединяет (сливает) изменения из ветки 'lesson_хх' в текущую ветку (в данном случае, в 'main').
+git merge lesson_хх
+
+	// Создает новую ветку с именем 'lesson_хх' на основе ветки 'main' и сразу же переключается на нее.
+git checkout -b lesson_хх main
+
+		// !Внимательно - Принудительно удаляет ветку 'lesson_хх', если в ветке есть неслитые изменения.
+	git branch -D lesson_хх
+
+		// !Внимательно - Альтернативный синтаксис для принудительного удаления ветки.
+	git branch --delete --force lesson_хх)
+
+		// !Внимательно - "Безопасное" удаление, если ветка полностью замержена (слита в main)
+	git branch -d lesson_хх
+		или 
+	git branch --delete lesson_хх
+
+===============================================================================================================
+
+
+=== Описание маршрутов
+
++----------------------------------+--------+-------------+--------------+------------------------------------+
+|                                  | HTTP   | Метод       | Название     |                                    |
+|  Laravel Route                   | метод  | контроллера | маршрута     | Назначение                         |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+| Route::get('/')                  | GET    | view        | —            | Главная страница (welcome)         |
+| Route::get('/dashboard') ??      | GET    | view        | dashboard    | Панель управления (dashboard)      |
+| Route::get('/dashboard') ??      | GET    | index       | dashboard    | Список всех постов (объединить ??) |
+| Route::get('add-post')           | GET    | create      | add-post     | Форма создания поста               |
+| Route::post('store-post')        | POST   | store       | store-post   | Сохранение нового поста            |
+| Route::get('edit-post/{id}')     | GET    | edit        | edit-post    | Форма редактирования поста id      |
+| Route::put('update-post/{id}')   | PUT    | update      | update-post  | Обновление поста id                |
+| Route::delete('delete-post/{id}')| DELETE | destroy     | delete-post  | Удаление поста id                  |
+| Route::post('restore-post/{id}') | POST   | restore     | restore-post | Восстановление удалённого поста id |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+
+
+--- Модель app/Models/Post.php с мягким удалением
+
+// Модель app/Models/Post.php (и любая другая модель в Laravel) нужна для реализации концепции ORM 
+// (Object-Relational Mapping - Объектно-Реляционное Отображение), а именно для работы с базой данных 
+// в объектно-ориентированном стиле.
+
+// Проще говоря, Post.php — это "представитель" вашей таблицы posts в коде вашего приложения.
+
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes; // Импортирует трейт SoftDeletes в модель
+
+class Post extends Model
+{
+    use HasFactory, SoftDeletes; // Активирует использование трейта SoftDeletes в этой модели.
+                                 // Это главный момент для мягкого удаления.
+
+    protected $table = 'posts'; // Явно указывает, что модель Post связана с таблицей 'posts' в базе данных.
+                               // Это полезно, если имя таблицы не соответствует соглашениям Laravel.
+
+    protected $fillable = [    // Определяет "разрешенные к заполнению" (mass assignable) поля модели.
+        'name',                // При использовании Post::create($request->all()) или $post->update($request->all()),
+        'text',                // только эти поля могут быть массово заполнены из массива данных.
+    ];
+}
+
+
+=== Описание: Как работает SoftDeletes
+
+При удалении записи ($post->delete()):
+Вместо физического удаления записи из базы данных, Laravel устанавливает текущую дату и время в колонке 
+deleted_at (которая должна быть в таблице posts с типом TIMESTAMP или DATETIME). Сама запись остаётся в 
+таблице, но помечается как неактивная и по умолчанию исключается из всех стандартных запросов Eloquent.
+
+Получение мягко удаленных записей:
+
+Post::withTrashed()->get();: Получает все записи (и активные, и мягко удаленные).
+Post::onlyTrashed()->get();: Получает только мягко удаленные записи.
+Восстановление записей:
+
+Отдельные записи можно восстановить с помощью $post->restore();
+Массовое восстановление (всех или по условию) выполняется с помощью Post::withTrashed()->restore();
+
+Принудительное (физическое) удаление:
+Для полного удаления записи из базы данных используйте $post->forceDelete();
+Итог: Благодаря SoftDeletes, наша модель Post идеально подходит для метода destroy в PostController. 
+Метод $post->delete() теперь будет выполнять мягкое удаление, сохраняя данные в базе, но помечая их 
+как неактивные, что удобно для реализации "корзины" или аудита, восстановления.
+
+
+--- Редактируем resources/views/dashboard.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+                {{-- Кнопка "Добавить пост" --}}
+                <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a>
+
+                {{-- Кнопка "Скрыть/Показать удаленные посты" --}}
+                {{-- Логика кнопки зависит от текущего состояния запроса 'show_deleted' --}}
+                <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}"
+                   class="btn btn-outline-secondary mb-3">
+                    {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }}
+                </a>
+
+                {{-- Перебираем посты, которые были переданы в представление --}}
+                @foreach ($posts as $post)
+                    {{-- Отображаем пост только если он не удален ИЛИ если запрошен показ удаленных постов --}}
+                    {{-- Добавляем класс 'border-danger' для удаленных постов и 'mb-3' для отступа --}}
+                    @if(!$post->trashed() || request('show_deleted'))
+                        <div class="card mb-3 {{ $post->trashed() ? 'border-danger' : '' }}">
+                            <h5 class="card-header">
+                                {{ $post->name }}
+                                {{-- Добавляем значок "Удалено" для мягко удаленных постов --}}
+                                @if($post->trashed())
+                                    <span class="badge bg-danger">Удалено</span>
+                                @endif
+                            </h5>
+                            <div class="card-body">
+                                <p>{{ $post->created_at }}</p>
+                                <p>{{ $post->text }}</p>
+
+                                {{-- Кнопки действий: Edit, Delete, Restore --}}
+                                {{-- Если пост мягко удален, показываем только кнопку "Restore" --}}
+                                @if ($post->trashed())
+                                    {{-- Форма для кнопки "Restore" --}}
+                                    <form action="{{ route('restore-post', $post->id) }}" method="POST" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-warning">Restore</button>
+                                    </form>
+
+                                    {{-- Форма для кнопки "Полное Удаление" --}}
+                                    <form action="{{ route('force-delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите НАВСЕГДА удалить этот пост?')">
+                                        @csrf
+                                        @method('DELETE') {{-- Обязательно используем DELETE метод --}}
+                                        <button type="submit" class="btn btn-outline-danger">Force Delete</button>
+                                    </form>
+                                @else
+                                    {{-- Если пост НЕ удален, показываем "Edit" и "Delete" --}}
+                                    <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
+
+                                    {{-- Форма для кнопки "Delete" --}}
+                                    <form action="{{ route('delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirmDelete()">
+                                        @csrf
+                                        @method('DELETE') {{-- Используем метод DELETE для удаления --}}
+                                        <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+
+            </div>
+        </div>
+    </div>
+
+</x-app-layout>
+
+<script>
+    // JavaScript функция для подтверждения удаления
+    function confirmDelete() {
+        return confirm('Вы уверены, что хотите удалить этот пост?');
+    }
+</script>
+
+
+
+--- Добавляем/Меняем методы index, destroy (delete), restore, forceDelete в app/Http/Controllers/PostController.php
+
+public function index(Request $request) // Объявляем метод index, который будет обрабатывать запросы для отображения списка постов.
+{
+    $query = Post::orderBy('created_at', 'desc');
+
+    if ($request->has('show_deleted') && $request->input('show_deleted')) {
+        $query->withTrashed(); // Включаем мягко удаленные посты в выборку
+    }
+
+    $posts = $query->get();
+
+    return view('dashboard', compact('posts'));
+}
+
+public function destroy($id) // Объявляем метод destroy для удаления поста, принимающий ID поста из URL.
+{
+    $post = Post::findOrFail($id);
+    $post->delete();
+
+    return redirect()->route('dashboard')->with('success', "Post ({$post->name}) deleted!");
+}
+
+public function restore($id) // Объявляем метод restore для восстановления мягко удаленного поста, принимающий ID поста.
+{
+    $post = Post::onlyTrashed()->findOrFail($id); // Находим только среди удаленных
+    $post->restore(); // Восстанавливаем пост
+
+    return redirect()->route('dashboard')->with('success', "Post ({$post->name}) restored!");
+}
+
+public function forceDelete($id) // Объявляем метод forceDelete для физического удаления поста из базы данных.
+{
+    // Находим пост, который был мягко удален.
+    // Используем onlyTrashed() для поиска только среди удаленных записей.
+    $post = Post::onlyTrashed()->findOrFail($id);
+
+    // Получаем имя поста до его полного удаления для сообщения
+    $post_name = $post->name;
+
+    // Выполняем физическое удаление записи из базы данных.
+    $post->forceDelete();
+
+    // Перенаправляем на дашборд с сообщением "Пост (название) удален навсегда".
+    return redirect()->route('dashboard')->with('success', "Post ({$post_name}) permanently deleted!");
+}
+
+
+--- Добавляем маршруты routes/web.php
+
+Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post');
+Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post');
+Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post');
+
+
+=== Описание методов index, destroy (delete), restore, forceDelete в app/Http/Controllers/PostController.php
+
+public function index(Request $request) // Объявляем метод index, который будет обрабатывать запросы для отображения списка постов.
+                                        // Request $request: Laravel автоматически внедряет (предоставляет) сюда объект Request,
+                                        // который содержит все данные текущего HTTP-запроса, включая параметры URL.
+{
+    $query = Post::orderBy('created_at', 'desc'); // Инициализируем построитель запросов Eloquent для модели Post.
+                                                 // Запрос изначально сортируется по дате создания в убывающем порядке (от новых к старым).
+
+    if ($request->has('show_deleted') && $request->input('show_deleted')) {
+        // Проверяем, существует ли в URL параметр 'show_deleted' И если его значение истинно (например, '1' или true).
+        // Это условие позволяет пользователю переключать режим отображения удаленных постов.
+        $query->withTrashed(); // Если 'show_deleted' присутствует и истинно,
+                             // добавляем к запросу метод withTrashed() из SoftDeletes.
+                             // Это включает в выборку как активные, так и мягко удаленные посты.
+    }
+
+    $posts = $query->get(); // Выполняем построенный запрос к базе данных.
+                           // Получаем коллекцию всех постов, соответствующих примененным условиям
+                           // (либо только активных, либо активных + мягко удаленных), и сохраняем их в $posts.
+
+    return view('dashboard', compact('posts')); // Возвращаем представление (Blade-шаблон) с именем 'dashboard'.
+                                               // Функция compact('posts') передает переменную $posts в это представление,
+                                               // делая её доступной для отображения на странице.
+}
+
+public function destroy($id) // Объявляем метод destroy для удаления поста, принимающий ID поста из URL.
+{
+    $post = Post::findOrFail($id); // Находим пост в базе данных по переданному $id.
+                                   // findOrFail() автоматически сгенерирует 404 ошибку, если пост с таким ID не найден.
+    $post->delete(); // Вызывает метод delete() на найденном объекте Post.
+                     // Благодаря трейту SoftDeletes в модели Post, это будет "мягкое" удаление:
+                     // запись не удаляется физически, а лишь помечается как удаленная (заполняется поле 'deleted_at').
+
+    return redirect()->route('dashboard')->with('success', "Post ({$post->name}) deleted!");
+                                   // Перенаправляем пользователя на маршрут 'dashboard' (главную страницу).
+                                   // Метод with('success', ...) добавляет флеш-сообщение об успехе в сессию,
+                                   // которое будет доступно в следующем запросе (на странице dashboard) для отображения.
+                                   // В сообщении используется имя удаленного поста ($post->name).
+}
+
+public function restore($id) // Объявляем метод restore для восстановления мягко удаленного поста, принимающий ID поста.
+{
+    $post = Post::onlyTrashed()->findOrFail($id); // Находим пост по $id, но ищем ТОЛЬКО среди тех,
+                                                  // которые были мягко удалены (то есть, у которых заполнено поле 'deleted_at').
+                                                  // findOrFail() сгенерирует 404, если пост не найден или не является удаленным.
+    $post->restore(); // Вызывает метод restore() на найденном объекте Post.
+                      // Этот метод, предоставляемый SoftDeletes, очищает поле 'deleted_at',
+                      // делая пост снова активным и видимым в обычных запросах.
+
+    return redirect()->route('dashboard')->with('success', "Post ({$post->name}) restored!");
+                                   // Перенаправляем пользователя на главную страницу ('dashboard').
+                                   // Добавляем флеш-сообщение об успехе, указывая имя восстановленного поста.
+}
+
+public function forceDelete($id) // Объявляем метод forceDelete для физического удаления поста из базы данных.
+{
+    // Находим пост, который был мягко удален.
+    // Используем onlyTrashed() для поиска только среди удаленных записей.
+    $post = Post::onlyTrashed()->findOrFail($id);
+
+    // Получаем имя поста до его полного удаления для сообщения
+    $post_name = $post->name;
+
+    // Выполняем физическое удаление записи из базы данных.
+    $post->forceDelete();
+
+    // Перенаправляем на дашборд с сообщением об успехе.
+    return redirect()->route('dashboard')->with('success', "Post ({$post_name}) permanently deleted!");
+}
+
+=== Описание маршрутов routes/web.php
+
+Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post');
+// Определяет маршрут для восстановления мягко удаленного поста.
+// - Route::post: Этот маршрут будет отвечать на HTTP POST-запросы.
+// - 'restore-post/{id}': URL-путь маршрута. `{id}` является параметром, который будет содержать ID поста для восстановления.
+// - [PostController::class, 'restore']: Указывает, что запрос будет обработан методом `restore` из `PostController`.
+// - ->name('restore-post'): Присваивает этому маршруту уникальное имя 'restore-post'.
+//   Это имя удобно использовать в Blade-шаблонах (например, `route('restore-post', $post->id)`)
+//   для генерации URL, что делает код более гибким при изменении URL-пути.
+
+Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post');
+// Определяет маршрут для удаления поста (мягкого удаления в данном случае).
+// - Route::delete: Этот маршрут будет отвечать на HTTP DELETE-запросы.
+//   (В формах Laravel это реализуется через метод POST с директивой @method('DELETE')).
+// - 'delete-post/{id}': URL-путь маршрута. `{id}` является параметром, который будет содержать ID поста для удаления.
+// - [PostController::class, 'destroy']: Указывает, что запрос будет обработан методом `destroy` из `PostController`.
+// - ->name('delete-post'): Присваивает этому маршруту уникальное имя 'delete-post'.
+//   Используется аналогично для генерации URL в Blade.
+
+=== Подробное Описание resources/views/dashboard.blade.php
+
+<x-app-layout>                                                          {{-- Открывает компонент макета Laravel Blade для всего содержимого страницы. --}}
+    <x-slot name="header">                                              {{-- Определяет содержимое для слота 'header' в компоненте 'x-app-layout'. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">  {{-- HTML-заголовок второго уровня с Tailwind CSS классами для стилизации. --}}
+            {{ __('Dashboard') }}                                       {{-- Выводит локализованный текст "Dashboard". --}}
+        </h2>                                                           {{-- Закрывает тег <h2>. --}}
+    </x-slot>                                                           {{-- Закрывает слот 'header'. --}}
+
+    <div class="container mt-6">                                        {{-- HTML-контейнер с классами Bootstrap для центрирования содержимого и верхнего отступа. --}}
+        <div class="row">                                               {{-- Открывает Bootstrap-строку, создавая горизонтальный ряд для содержимого. --}}
+            <div class="col-md-12">                                     {{-- Открывает Bootstrap-колонку, занимающую всю ширину (12 из 12) на средних и больших экранах. --}}
+                {{-- Кнопка "Добавить пост" --}}
+                <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a> {{-- HTML-ссылка, стилизованная как кнопка, ведущая на маршрут 'add-post'. --}}
+
+                {{-- Кнопка "Скрыть/Показать удаленные посты" --}}
+                {{-- Логика кнопки зависит от текущего состояния запроса 'show_deleted' --}}
+                <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}" {{-- HTML-ссылка, стилизованная как кнопка, которая переключает параметр 'show_deleted' в URL маршрута 'dashboard'. --}}
+                   class="btn btn-outline-secondary mb-3">              {{-- Классы Bootstrap для стилизации кнопки. --}}
+                    {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }} {{-- Текст кнопки, который динамически меняется в зависимости от значения параметра 'show_deleted' в текущем запросе. --}}
+                </a>                                                    {{-- Закрывает тег <a>. --}}
+
+                {{-- Перебираем посты, которые были переданы в представление --}}
+                @foreach ($posts as $post)                              {{-- Начинает цикл Blade, перебирая каждый элемент в коллекции `$posts` и присваивая его переменной `$post` на каждой итерации. --}}
+                    {{-- Отображаем пост только если он не удален ИЛИ если запрошен показ удаленных постов --}}
+                    {{-- Добавляем класс 'border-danger' для удаленных постов и 'mb-3' для отступа --}}
+                    @if(!$post->trashed() || request('show_deleted'))                     
+                        {{-- Условный блок Blade: проверяет, не удален ли пост (`!$post->trashed()`) ИЛИ если в запросе есть параметр 'show_deleted' (то есть, удаленные посты должны быть показаны). --}}
+                        
+                        <div class="card mb-3 {{ $post->trashed() ? 'border-danger' : '' }}"> {{-- HTML-элемент `div`, стилизованный как карточка Bootstrap, с нижним отступом. Добавляет класс 'border-danger', если пост мягко удален. --}}
+                            <h5 class="card-header">                    {{-- HTML-заголовок пятого уровня, используемый как шапка карточки. --}}
+                                {{ $post->name }}                       {{-- Выводит значение свойства `name` текущего поста. --}}
+                                {{-- Добавляем значок "Удалено" для мягко удаленных постов --}}
+                                @if($post->trashed())                   {{-- Условный блок Blade: проверяет, мягко удален ли текущий пост. --}}
+                                    <span class="badge bg-danger">Удалено</span>   {{-- HTML-элемент `span`, стилизованный как красный значок "Удалено". --}}
+                                @endif                                  {{-- Закрывает условный блок `@if`. --}}
+                            </h5>                                       {{-- Закрывает тег <h5>. --}}
+                            <div class="card-body">                     {{-- HTML-элемент `div`, содержащий основное содержимое карточки. --}}
+                                <p>{{ $post->created_at }}</p>          {{-- Выводит дату создания поста, обернутую в параграф. --}}
+                                <p>{{ $post->text }}</p>                {{-- Выводит текст поста, обернутый в параграф. --}}
+
+                                {{-- Кнопки действий: Edit, Delete, Restore --}}
+                                {{-- Если пост мягко удален, показываем только кнопку "Restore" --}}
+                                @if ($post->trashed())                  {{-- Условный блок Blade: проверяет, мягко удален ли текущий пост. --}}
+                                    {{-- Форма для кнопки "Restore" --}}
+                                    <form action="{{ route('restore-post', $post->id) }}" method="POST" style="display:inline;"> {{-- HTML-форма для отправки POST-запроса на маршрут 'restore-post' с ID текущего поста. --}}
+                                        @csrf                           {{-- Blade-директива, генерирующая скрытое поле CSRF-токена для защиты от подделки межсайтовых запросов. --}}
+                                        <button type="submit" class="btn btn-outline-warning">Restore</button> {{-- HTML-кнопка отправки, стилизованная Bootstrap'ом. --}}
+                                    </form>                             {{-- Закрывает тег <form>. --}}
+
+                                    {{-- Форма для кнопки "Полное Удаление" --}}
+                                    <form action="{{ route('force-delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите НАВСЕГДА удалить этот пост?')"> 
+                                            {{-- HTML-форма для отправки POST-запроса, имитирующего DELETE, на маршрут 'force-delete-post' с ID текущего поста. Включает JavaScript-подтверждение. --}}
+                                        
+                                        @csrf                          {{-- CSRF-токен для безопасности. --}}
+                                        @method('DELETE') {{-- Обязательно используем DELETE метод --}} {{-- Blade-директива, генерирующая скрытое поле для имитации HTTP-метода DELETE, необходимого для маршрута. --}}
+                                        <button type="submit" class="btn btn-outline-danger">Force Delete</button> {{-- HTML-кнопка отправки, стилизованная Bootstrap'ом. --}}
+                                    </form>                            {{-- Закрывает тег <form>. --}}
+                                @else                                  {{-- Блок `else`: выполняется, если пост НЕ мягко удален (то есть, он активен). --}}
+                                    {{-- Если пост НЕ удален, показываем "Edit" и "Delete" --}}
+                                    <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a> {{-- HTML-ссылка, стилизованная как кнопка, ведущая на страницу редактирования поста. --}}
+
+                                    {{-- Форма для кнопки "Delete" --}}
+                                    <form action="{{ route('delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirmDelete()"> 
+                                        {{-- HTML-форма для отправки POST-запроса, имитирующего DELETE, на маршрут 'delete-post' с ID текущего поста. Включает JavaScript-подтверждение. --}}
+                                        
+                                        @csrf                                              {{-- CSRF-токен для безопасности. --}}
+                                        @method('DELETE') {{-- Используем метод DELETE для удаления --}} {{-- Blade-директива, генерирующая скрытое поле для имитации HTTP-метода DELETE. --}}
+                                        <button type="submit" class="btn btn-outline-danger">Delete</button> {{-- HTML-кнопка отправки, стилизованная Bootstrap'ом. --}}
+                                    </form>                                                {{-- Закрывает тег <form>. --}}
+                                @endif                                 {{-- Закрывает условный блок `@if ($post->trashed())`. --}}
+                            </div>                                     {{-- Закрывает тег `div.card-body`. --}}
+                        </div>                                         {{-- Закрывает тег `div.card`. --}}
+                    @endif                                             {{-- Закрывает условный блок `@if(!$post->trashed() || request('show_deleted'))`. --}}
+                @endforeach                                            {{-- Закрывает цикл `@foreach`. --}}
+
+            </div>                                                     {{-- Закрывает тег `div.col-md-12`. --}}
+        </div>                                                         {{-- Закрывает тег `div.row`. --}}
+    </div>                                                             {{-- Закрывает тег `div.container`. --}}
+
+</x-app-layout>                                                        {{-- Закрывает компонент макета `x-app-layout`. --}}
+
+<script>                                                               {{-- Открывает тег для встраивания JavaScript-кода. --}}
+    // JavaScript функция для подтверждения удаления
+    function confirmDelete() {                                         {{-- Объявляет JavaScript-функцию `confirmDelete`. --}}
+        return confirm('Вы уверены, что хотите удалить этот пост?');   {{-- Вызывает встроенное модальное окно браузера для подтверждения, возвращая `true` или `false` в зависимости от выбора пользователя. --}}
+    }                                                                  {{-- Закрывает функцию `confirmDelete`. --}}
+</script>                                                              {{-- Закрывает тег `<script>`. --}}
+======================================================================================================================
+

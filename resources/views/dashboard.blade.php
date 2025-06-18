@@ -8,7 +8,6 @@
     <div class="container mt-6">
         <div class="row">
             <div class="col-md-12">
-                {{-- <button type="button" class="btn btn-outline-success mb-3">Add post</button> --}}
                 <a href="{{route('add-post')}}" class="btn btn-outline-success mb-3">Add post</a>
 
                 @foreach ($posts as $post)
@@ -17,7 +16,6 @@
                         <div class="card-body">
                             <p>{{$post->created_at}}</p>
                             <p>{{$post->text}}</p>
-                            {{-- <a href="#" class="btn btn-outline-primary">Edit</a> --}}
                             <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
 
                             <a href="#" class="btn btn-outline-danger">Delete</a>
