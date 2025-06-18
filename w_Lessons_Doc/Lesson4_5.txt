@@ -7,7 +7,7 @@
 https://github.com/AS7go/la12sail1/tree/lesson_04_5
 
     GitHub Текстовое Описание урока 
-https://github.com/AS7go/la12sail1/blob/lesson_04_4/w_Lessons_Doc/Lesson4_5.txt
+https://github.com/AS7go/la12sail1/blob/lesson_04_5/w_Lessons_Doc/Lesson4_5.txt
 
 Документация:
 
