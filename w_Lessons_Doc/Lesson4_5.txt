@@ -73,7 +73,7 @@ git checkout -b lesson_хх main
 	git branch -D lesson_хх
 
 		// !Внимательно - Альтернативный синтаксис для принудительного удаления ветки.
-	git branch --delete --force lesson_хх)
+	git branch --delete --force lesson_хх
 
 		// !Внимательно - "Безопасное" удаление, если ветка полностью замержена (слита в main)
 	git branch -d lesson_хх
@@ -385,6 +385,16 @@ Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('del
 // - [PostController::class, 'destroy']: Указывает, что запрос будет обработан методом `destroy` из `PostController`.
 // - ->name('delete-post'): Присваивает этому маршруту уникальное имя 'delete-post'.
 //   Используется аналогично для генерации URL в Blade.
+
+Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post');
+// Определяет маршрут для полного (физического) удаления поста из базы данных.
+// - Route::delete: Этот маршрут будет отвечать на HTTP DELETE-запросы.
+//   (Как и для мягкого удаления, в HTML-формах это имитируется методом POST с директивой @method('DELETE')).
+// - 'force-delete-post/{id}': URL-путь маршрута. `{id}` является параметром, который будет содержать ID поста для полного удаления.
+// - [PostController::class, 'forceDelete']: Указывает, что запрос будет обработан методом `forceDelete` из `PostController`.
+//   Этот метод выполняет необратимое удаление записи из БД.
+// - ->name('force-delete-post'): Присваивает этому маршруту уникальное имя 'force-delete-post'.
+//   Это имя используется для генерации URL в Blade-шаблонах, например, `route('force-delete-post', $post->id)`.
 
 === Подробное Описание resources/views/dashboard.blade.php
 

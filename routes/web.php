@@ -26,6 +26,10 @@ Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post')
 Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post');
 
 
+Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post');
+Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post');
+Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post');
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
