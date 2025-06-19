@@ -87,7 +87,6 @@ class PostController extends Controller
         
     }
 
-
     public function destroy($id) // Объявляем метод destroy для удаления поста, принимающий ID поста из URL.
     {
         $post = Post::findOrFail($id);
