@@ -46,6 +46,19 @@ class PostController extends Controller
         return view('edit-new-post', compact(['post']));
     }
 
+    // public function update($id, Request $request)
+    // {
+    //     $request->validate([
+    //         'name'=>'required|string|max:255',
+    //         'text'=>'required|string',
+    //     ]);
+
+    //     $post = Post::findOrFail($id);
+    //     $post->update($request->all());
+
+    //     return redirect()->route('dashboard')->with('success', "Post ({$post->name}) updated!");
+    // }
+
     public function update($id, Request $request)
     {
         $request->validate([
@@ -54,9 +67,24 @@ class PostController extends Controller
         ]);
 
         $post = Post::findOrFail($id);
-        $post->update($request->all());
 
-        return redirect()->route('dashboard')->with('success', "Post ({$post->name}) updated!");
+        // Получаем только те данные из запроса, которые мы хотим обновить
+        $validatedData = $request->only(['name', 'text']);
+
+        // Проверяем, есть ли реальные изменения
+        // Метод fill() применяет новые значения к модели, но не сохраняет их в БД.
+        // isDirty() затем проверяет, отличаются ли новые значения от текущих в БД.
+        $post->fill($validatedData);
+
+        if ($post->isDirty()) { // Если хотя бы одно из заполненных полей изменилось
+            $post->save(); // Сохраняем изменения в базу данных
+            $message = "Post ({$post->name}) updated!";
+        } else {
+            $message = "Post ({$post->name}) has no changes."; // Сообщение, если изменений нет
+        }
+
+        return redirect()->route('dashboard')->with('success', $message);
+        
     }
 
 

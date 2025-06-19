@@ -28,12 +28,15 @@
                                 {{ $post->name }}
                                 {{-- Добавляем значок "Удалено" для мягко удаленных постов --}}
                                 @if($post->trashed())
-                                    <span class="badge bg-danger">Удалено</span>
+                                    <span class="badge bg-danger">Deleted</span>
                                 @endif
                             </h5>
                             <div class="card-body">
-                                <p>{{ $post->created_at }}</p>
-                                <p>{{ $post->text }}</p>
+                                {{-- <p>{{ $post->created_at }}</p>
+                                <p>{{ $post->text }}</p> --}}
+
+                                <p>Created {{ $post->created_at }}</p>
+                                <p>Updated {{ $post->updated_at }}</p>  
 
                                 {{-- Кнопки действий: Edit, Delete, Restore --}}
                                 {{-- Если пост мягко удален, показываем только кнопку "Restore" --}}
