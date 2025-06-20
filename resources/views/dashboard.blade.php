@@ -37,6 +37,7 @@
 
                                 <p>Created {{ $post->created_at }}</p>
                                 <p>Updated {{ $post->updated_at }}</p>  
+                                <p>{{ $post->text }}</p>
 
                                 {{-- Кнопки действий: Edit, Delete, Restore --}}
                                 {{-- Если пост мягко удален, показываем только кнопку "Restore" --}}
