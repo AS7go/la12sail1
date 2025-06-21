@@ -1,0 +1,415 @@
+=== Урок 5 Автоматическое разрешение для "super-user" и присвоение роли "user" новым пользователям.
+RoleController (resource)
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+    GitHub (урок 5):
+https://github.com/AS7go/la12sail1/tree/lesson_05
+
+    GitHub Текстовое Описание урока 
+https://github.com/AS7go/la12sail1/blob/lesson_05/w_Lessons_Doc/Lesson5.txt
+
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+    Laravel 12 csrf
+https://laravel.com/docs/12.x/csrf
+
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+    Стиль кнопок Bootstrap 5
+https://getbootstrap.com/docs/5.0/components/buttons/
+    Стили Форм
+https://getbootstrap.com/docs/5.0/forms/form-control/
+
+--- Открыть терминал.
+--- Перейти в директорию проекта.
+cd project1/la12sail1
+
+--- Запустить VScode.
+code .
+
+--- Запустить контейнеры
+sail up -d
+
+--- Работаем с проектом
+
+--- Перед закрытием проекта желательно остановить контейнеры:
+sail down
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- Команды Git
+
+хх - номер урока, например (lesson_05)
+    // Добавляет все измененные файлы в индекс (staging area) для следующего коммита.
+git add .
+
+    // Создает новый коммит с указанным комментарием. Комментарий должен описывать изменения.
+git commit -m 'your comment'
+
+    // Переключает текущую ветку на ветку 'main'. Все последующие изменения будут вноситься в эту ветку.
+git checkout main
+
+    // Объединяет (сливает) изменения из ветки 'lesson_хх' в текущую ветку (в данном случае, в 'main').
+git merge lesson_хх
+
+    // Создает новую ветку с именем 'lesson_хх' на основе ветки 'main' и сразу же переключается на нее.
+git checkout -b lesson_хх main
+
+        // !Внимательно - Принудительно удаляет ветку 'lesson_хх', если в ветке есть неслитые изменения.
+    git branch -D lesson_хх
+
+        // !Внимательно - Альтернативный синтаксис для принудительного удаления ветки.
+    git branch --delete --force lesson_хх
+
+        // !Внимательно - "Безопасное" удаление, если ветка полностью замержена (слита в main)
+    git branch -d lesson_хх
+        или 
+    git branch --delete lesson_хх
+
+===============================================================================================================
+
+=== Роли и Разрешения в контексте нашей системы управления постами, работают так:
+
+--- Разрешения (Permissions)
+
+Это конкретные действия, которые пользователь может или не может совершать над постами. Для каждого 
+метода нашего PostController у нас есть соответствующее разрешение:
+
+- show posts (для метода index): Разрешает просматривать список всех постов.
+- add posts (для методов create и store): Разрешает открывать форму создания нового поста и сохранять его.
+- edit posts (для методов edit и update): Разрешает открывать форму редактирования существующего поста и 
+  сохранять изменения.
+- delete posts (для метода destroy): Разрешает мягко удалять посты (перемещать их в "корзину").
+- restore posts (для метода restore): Разрешает восстанавливать ранее удаленные посты.
+- force delete posts (для метода forceDelete): Разрешает полностью и необратимо удалять посты из базы данных.
+
+--- Роли (Roles)
+
+Это группы этих разрешений. Вместо того чтобы назначать каждому пользователю индивидуальные права на 
+"просмотр", "добавление", "редактирование" и т.д., мы объединяем их в роли.
+
+- Пример 1: Роль "Пользователь" (user)
+
+Может иметь разрешение: show posts (просматривать посты).
+Возможно, add posts (создавать свои посты).
+Но, скорее всего, не будет иметь delete posts или force delete posts для чужих постов.
+
+- Пример 2: Роль "Модератор" (moderator)
+
+Может иметь: show posts, add posts, edit posts, delete posts, restore posts.
+Может не иметь force delete posts, чтобы избежать необратимых действий.
+
+- Пример 3: Роль "Администратор" у нас "super-user"
+
+Обычно имеет все разрешения для всех постов, включая show posts, add posts, edit posts, 
+delete posts, restore posts, force delete posts.
+
+--- Зачем нам нужны роли для постов?
+
+Роли значительно упрощают управление доступом к постам:
+
+- Гибкость: Если завтра появится новое разрешение (например, "публиковать пост"), вы просто добавляете 
+его к соответствующим ролям, а не ищете каждого пользователя, которому нужно это разрешение.
+- Удобство: Гораздо быстрее назначить пользователю роль "Модератор", чем вручную выдавать ему 5-7 
+отдельных разрешений на работу с постами.
+- Масштабируемость: Представьте, что у вас 100 пользователей и 15 различных действий с постами. 
+Управлять 1500 индивидуальными связями — нерационально. С ролями вы управляете всего несколькими ролями 
+и их связями с пользователями.
+- Ясность: Когда вы видите, что у пользователя роль "Администратор", сразу понятно, какой уровень 
+доступа он имеет ко всем функциям, включая управление постами.
+
+Используя роли и разрешения, вы строите более безопасную, гибкую и легко управляемую систему, где каждый 
+пользователь имеет именно тот доступ к постам, который ему необходим.
+
+--- Переходим по ссылке и читаем:
+https://spatie.be/docs/laravel-permission/v6/basic-usage/super-admin
+
+=== Предоставим автоматическое разрешение для роли "super-user", не назначая их по отдельности. 
+Для этого используется метод Laravel Gate::before(), который позволяет "super-user" всегда отвечать 
+true при любой проверке разрешений.
+
+--- Перходим в app/Providers/AppServiceProvider.php
+В Laravel 11+ это будет в boot() методе AppServiceProvider
+Меняем Super Admin на super-user так как у нас super-user
+
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        // Предоставить роли "super-user" все разрешения
+        // Это работает с использованием функций, связанных с шлюзом, таких как auth()->user->can() и @can()
+        Gate::before(function ($user, $ability) {
+            return $user->hasRole('super-user') ? true : null;
+        });
+    }
+}
+
+=== Редактируем маршруты в routes/web.php, собираем в авторизированную группу (auth group)
+
+<?php
+
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PostController;
+
+Route::get('/', function () {
+    return view('welcome');
+});
+
+
+Route::middleware('auth')->group(function () { // <-- Здесь применяется middleware 'auth' ко всей группе
+
+    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard');
+
+    Route::get('add-post', [PostController::class, 'create'])->name('add-post');
+    Route::post('store-post', [PostController::class, 'store'])->name('store-post');
+
+    Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post');
+    Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post');
+
+
+    Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post');
+    Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post');
+    Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post');
+
+    // Маршруты ниже создаются автоматически в Laravel starter kits (например, Breeze или Jetstream), 
+    // предоставляя базовое управление профилем пользователя и аутентификацию.
+    // Пока их не трогаем. Это другое меню profile, которое мы не используем.
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+});
+
+require __DIR__.'/auth.php';  // <-- Здесь загружаются маршруты аутентификации Breeze, включая логин/регистрацию
+
+
+===================================================================================================
+
+=== Делаем Присвоение роли автоматически при регистрации $user->assignRole('user');
+https://spatie.be/docs/laravel-permission/v6/basic-usage/role-permissions
+
+--- В файле app/Http/Controllers/Auth/RegisteredUserController.php
+
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+...
+
+class RegisteredUserController extends Controller
+{
+    public function create(): View
+    {
+        return view('auth.register');
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        ..........
+        
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        $user->assignRole('user'); // Добавили автоприсвоение роли user
+
+        event(new Registered($user));
+
+        Auth::login($user);
+
+        return redirect(route('dashboard', absolute: false));
+    }
+}
+
+=== Создание ролей и разрешений с помощью команд Artisan
+--- https://spatie.be/docs/laravel-permission/v6/basic-usage/artisan
+--- создаст роль user и добавит в таблицу roles
+--- Обратите внимание что не php artisan... а sail artisan... , так как мы используем sail
+
+sail artisan permission:create-role user
+
+--- регистрируем нового пользователя и ему автоматически присвоит роль user
+http://localhost/register
+test1
+test1@gmail.com
+12345678
+12345678
+
+test2
+test2@gmail.com
+12345678
+12345678
+
+--- смотрим в таблицах `roles`, `user` и `model_has_roles` колонки связь роли с пользователем
+role_id - id роли в таблице `roles`
+App\Models\User
+model_id - id пользователя в таблице `users`
+
+http://localhost:8080
+root
+password
+
+--- к определенной роли нужно добавлять права доступа
+
+--- Создаем RoleController с опцией модели для привязок, но отказываемся от создания модели 
+App\Models\Role, т.к. привязка будет к Spatie\Permission\Models\Role
+
+sail artisan make:controller RoleController --resource --model=Role
+
+ ┌ A App\Models\Role model does not exist. Do you want to generate it? ┐
+ │ No                                                                  │
+ └─────────────────────────────────────────────────────────────────────┘
+ 
+--- в файле app/Http/Controllers/RoleController.php меняем
+    // use App\Models\Role;
+        на
+    use Spatie\Permission\Models\Role;
+
+--- Добавляем маршрут в routes/web.php после  Route::delete('force-delete-post...')
+    
+    use App\Http\Controllers\RoleController;
+    ...
+
+    Route::resource('roles', RoleController::class);  // Все методы в одном маршруте (resource)
+
+=== Описание Что такое Route::resource?
+Route::resource() — это мощный метод Laravel, который автоматически создает набор стандартных маршрутов 
+CRUD (Create, Read, Update, Delete) для "ресурса" (в данном случае, для "ролей"). Он значительно упрощает 
+определение множества маршрутов для типичных веб-действий.
+
+Какие маршруты генерируются для roles?
+Для Route::resource('roles', RoleController::class); Laravel автоматически создаст следующие 7 маршрутов, 
+связывая их с соответствующими методами в RoleController:
+
+GET /roles
+Имя: roles.index
+Метод контроллера: RoleController@index
+Назначение: Отображает список всех ролей.
+
+GET /roles/create
+Имя: roles.create
+Метод контроллера: RoleController@create
+Назначение: Отображает форму для создания новой роли.
+
+POST /roles
+Имя: roles.store
+Метод контроллера: RoleController@store
+Назначение: Сохраняет новую роль, отправленную из формы создания.
+
+GET /roles/{role}
+Имя: roles.show
+Метод контроллера: RoleController@show
+Назначение: Отображает подробную информацию об одной конкретной роли (по её ID). Параметр {role} будет 
+автоматически привязан к экземпляру Spatie\Permission\Models\Role (благодаря Route Model Binding).
+
+GET /roles/{role}/edit
+Имя: roles.edit
+Метод контроллера: RoleController@edit
+Назначение: Отображает форму для редактирования существующей роли.
+
+PUT/PATCH /roles/{role}
+Имя: roles.update
+Метод контроллера: RoleController@update
+Назначение: Обновляет существующую роль данными, отправленными из формы редактирования.
+
+DELETE /roles/{role}
+Имя: roles.destroy
+Метод контроллера: RoleController@destroy
+Назначение: Удаляет конкретную роль из базы данных.
+
+- Как это работает с Spatie\Permission\Models\Role?
+Когда вы изменили use App\Models\Role; на use Spatie\Permission\Models\Role; в вашем RoleController,
+вы сообщили Laravel, какую именно модель "Role" использовать для Route Model Binding.
+
+- Таким образом:
+RoleController будет ожидать экземпляры Spatie\Permission\Models\Role в своих методах (например, 
+public function show(Role $role)).
+
+Laravel будет использовать пакет Spatie для поиска ролей по ID в базе данных, когда эти маршруты 
+будут запрашиваться.
+
+- Итог:
+Route::resource('roles', RoleController::class); — это эффективный способ быстро создать полный набор 
+маршрутов для управления ролями в вашем приложении, используя RoleController и модель 
+Spatie\Permission\Models\Role от пакета Spatie. Это избавляет вас от необходимости вручную определять 
+каждый из семи маршрутов.
+
+--- добавляем пункт меню Roles в resources/views/layouts/navigation.blade.php
+
+    <!-- Navigation Links -->
+    <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+            {{ __('Dashboard') }}
+        </x-nav-link>
+
+        {{-- Добавляем --}}
+        <x-nav-link :href="route('roles.index')" :active="request()->routeIs('roles.index')">
+            Roles
+        </x-nav-link>
+    
+    </div>
+
+=== Описание кода <!-- Navigation Links -->
+
+<!-- Navigation Links -->                                     {{-- Комментарий HTML: Раздел для навигационных ссылок. --}}
+    <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"> {{-- HTML-элемент `div` с классами Tailwind CSS: --}}
+                                                              {{--   - `hidden`: Скрыт по умолчанию (на мобильных). --}}
+                            {{--   - `space-x-8`: Добавляет горизонтальный отступ между дочерними элементами. --}}
+                            {{--   - `sm:-my-px`: Отрицательный вертикальный маржин на малых экранах. --}}
+                            {{--   - `sm:ms-10`: Левый маржин на малых экранах. --}}
+                            {{--   - `sm:flex`: Отображает как flex-контейнер на малых экранах (для горизонтального расположения). --}}
+        
+        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')"> 
+                                                              {{-- Компонент навигационной ссылки для страницы "Dashboard". --}}
+            
+            {{ __('Dashboard') }}                             {{-- Выводит локализованный текст "Dashboard". --}}
+        </x-nav-link>                                         {{-- Закрывающий тег компонента `x-nav-link`. --}}
+
+        {{-- Добавляем --}}
+        <x-nav-link :href="route('roles.index')" :active="request()->routeIs('roles.index')">
+                                                              {{-- Компонент навигационной ссылки для страницы "Roles". --}}
+        
+            Roles                                             {{-- Текст ссылки. --}}
+        </x-nav-link>                                         {{-- Закрывающий тег компонента `x-nav-link`. --}}
+    
+    </div>                                                    {{-- Закрывающий тег `div` для навигационных ссылок. --}}
+
+==================================================================================================
+
