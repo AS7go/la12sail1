@@ -177,7 +177,7 @@ class AppServiceProvider extends ServiceProvider
     }
 }
 
-=== Редактируем маршруты, собираем в авторизированную группу (auth group)
+=== Редактируем маршруты в routes/web.php, собираем в авторизированную группу (auth group)
 
 <?php
 
