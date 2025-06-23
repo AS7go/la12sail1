@@ -52,6 +52,13 @@
                             </div>
                         @endif
 
+                        {{-- Вывод ошибок --}}
+                        @if (session('error'))
+                            <div class="alert alert-danger">
+                                {{ session('error') }}
+                            </div>
+                        @endif
+                        
                         {{-- Вывод ошибок валидации --}}
                         @if ($errors->any())
                             <div class="alert alert-danger mt-4">

@@ -1,0 +1,1125 @@
+=== Урок 5_1 Методы RoleController. Визуализация форм index, create, edit. PermissionsSeeder.
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+    GitHub (урок 5_1):
+https://github.com/AS7go/la12sail1/tree/lesson_05_1
+
+    GitHub Текстовое Описание урока 
+https://github.com/AS7go/la12sail1/blob/lesson_05_1/w_Lessons_Doc/Lesson5_1.txt
+
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+    Laravel 12 csrf
+https://laravel.com/docs/12.x/csrf
+
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+    Стиль кнопок Bootstrap 5
+https://getbootstrap.com/docs/5.0/components/buttons/
+    Стили Форм
+https://getbootstrap.com/docs/5.0/forms/form-control/
+
+--- Открыть терминал.
+--- Перейти в директорию проекта.
+cd project1/la12sail1
+
+--- Запустить VScode.
+code .
+
+--- Запустить контейнеры
+sail up -d
+
+--- Работаем с проектом
+
+--- Перед закрытием проекта желательно остановить контейнеры:
+sail down
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- Команды Git
+
+хх - номер урока, например (lesson_05)
+    // Добавляет все измененные файлы в индекс (staging area) для следующего коммита.
+git add .
+
+    // Создает новый коммит с указанным комментарием. Комментарий должен описывать изменения.
+git commit -m 'your comment'
+
+    // Переключает текущую ветку на ветку 'main'. Все последующие изменения будут вноситься в эту ветку.
+git checkout main
+
+    // Объединяет (сливает) изменения из ветки 'lesson_хх' в текущую ветку (в данном случае, в 'main').
+git merge lesson_хх
+
+    // Создает новую ветку с именем 'lesson_хх' на основе ветки 'main' и сразу же переключается на нее.
+git checkout -b lesson_хх main
+
+        // !Внимательно - Принудительно удаляет ветку 'lesson_хх', если в ветке есть неслитые изменения.
+    git branch -D lesson_хх
+
+        // !Внимательно - Альтернативный синтаксис для принудительного удаления ветки.
+    git branch --delete --force lesson_хх
+
+        // !Внимательно - "Безопасное" удаление, если ветка полностью замержена (слита в main)
+    git branch -d lesson_хх
+        или 
+    git branch --delete lesson_хх
+
+===============================================================================================================
+
+=== Создаем PermissionsSeeder, чтобы автоматически заполнить базу данных необходимыми разрешениями (permissions) 
+при развертывании приложения или обновлении базы данных.
+
+sail artisan make:seeder PermissionsSeeder
+
+--- будет создан файл /database/seeders/PermissionsSeeder.php
+
+--- заполняем правами доступа в database/seeders/PermissionsSeeder.php
+
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Permission;
+
+class PermissionsSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        Permission::create(['name' => 'show posts']);
+        Permission::create(['name' => 'add posts']);
+        Permission::create(['name' => 'edit posts']);
+        Permission::create(['name' => 'delete posts']);
+        Permission::create(['name' => 'restore posts']);
+        Permission::create(['name' => 'force delete posts']);
+    }
+}
+
+
+=== Запускаем конкретный сидер - PermissionsSeeder, который добавит в таблицу 
+`permissions` права show, add, edit, delete, restore, force delete
+
+sail artisan db:seed --class=PermissionsSeeder
+
+--- смотрим таблицу permissions
+
+--- Добавляем редактируем методы для обработки ролей в app/Http/Controllers/RoleController.php
+
+<?php
+
+namespace App\Http\Controllers;
+
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+use Illuminate\Validation\Rule; // <-- Добавлен импорт Rule для использования уникального правила
+
+use Illuminate\Http\Request;
+
+
+class RoleController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        // $roles=Role::orderBy('name')->where('name', '!=', 'super-user')->get(); // исключаем вывод super-user
+        $roles=Role::orderBy('name')->get();
+
+        return view('roles.index', compact('roles'));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $permissions = Permission::orderBy('name')->get();
+
+        return view('roles.create', compact([
+            'permissions'
+        ]));
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            // 'name'=>'required|string|max:255', // Оригинальная строка
+            // Рекомендуемое изменение: Добавлено правило 'unique:roles,name'
+            'name' => ['required', 'string', 'max:255', 'unique:roles,name'],
+            'permissions'=>'required',
+            'permissions.*'=>'required|integer|exists:permissions,id',
+        ]);
+
+        $newRole = Role::create([
+            'name'=>$request->name,
+        ]);
+        $permissions = Permission::whereIn('id', $request->permissions)->get();
+
+        $newRole->syncPermissions($permissions);
+
+        // Перенаправляем на страницу roles.index
+        return redirect()->route('roles.index')->with('success', "Role ({$newRole->name}) added!");
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Role $role)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Role $role)
+    {
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id); //защита от подмены id super-user
+
+        $permissions = Permission::orderBy('name')->get();
+
+        return view('roles.edit', compact([
+            'permissions',
+            'role',
+        ]));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Role $role)
+    {
+        $request->validate([
+            // 'name'=>'required|string|max:255',
+            // Правило Rule::unique('roles', 'name')->ignore($role->id) гарантирует, что имя уникально,
+            // но позволяет текущей редактируемой роли сохранить свое имя.
+            'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($role->id)],
+            'permissions'=>'required',
+            'permissions.*'=>'required|integer|exists:permissions,id',
+        ]);
+
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id); //защита от подмены id super-user
+
+        $role->update([
+            'name'=>$request->name,
+        ]);
+        $permissions = Permission::whereIn('id', $request->permissions)->get();
+        $role->syncPermissions($permissions);
+
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) updated!");
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Role $role)
+    {
+        if ($role->name === 'super-user') {
+            return redirect()->route('roles.index')->with('error', 'Роль "super-user" не может быть удалена.');
+        }
+
+        $role->delete();
+
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) deleted!");
+    }
+}
+
+=== Добавим вывод ошибок в resources/views/layouts/app.blade.php
+
+                        {{-- Вывод ошибок --}}
+                        @if (session('error'))
+                            <div class="alert alert-danger">
+                                {{ session('error') }}
+                            </div>
+                        @endif
+
+=== Создадим новую директорию с именем "roles" внутри директории "resources/views/"
+--- Добавляем обработку методов
+
+--- resources/views/roles/index.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                <a href="{{route('roles.create')}}" class="btn btn-outline-success mb-3">Add new role</a>
+
+                @foreach ($roles as $role)
+                    <div class="card mb-4">
+                        <h5 class="card-header">{{$role->name}}</h5>
+                        <div class="card-body">
+                            <a href="{{route('roles.edit', $role->id)}}" class="btn btn-outline-primary">Edit</a>
+
+                            <form action="{{ route('roles.destroy', $role->id) }}" method="POST" style="display: inline;" onsubmit="return confirmDelete()">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger">Delete</button>
+                            </form>
+
+                        </div>
+                    </div>
+                @endforeach
+
+            </div>
+        </div>
+    </div>
+
+
+</x-app-layout>
+
+<script>
+    function confirmDelete() {
+        return confirm('Вы уверены, что хотите удалить эту роль?');
+    }
+</script>
+
+--- resources/views/roles/create.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                <form method="post" action="{{route('roles.store')}}">
+                    @csrf
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Title</label>
+                        <input type="text" name="name" class="form-control mb-3" id="exampleInputEmail1" value="{{ old('name') }}">
+                    </div>
+                    @foreach ($permissions as $permission)
+                        <div class="form-group form-check mb-3">
+                            <input type="checkbox" value="{{$permission->id}}" name="permissions[]" class="form-check-input" id="exampleCheck">
+                            <label class="form-check-label" for="exampleCheck{{$permission->id}}">{{$permission->name}}</label>
+                        </div>
+
+                    @endforeach
+
+                    <button type="submit" class="btn btn-outline-success mb-2">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+--- resources/views/roles/edit.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                <form method="post" action="{{route('roles.update', $role->id)}}">
+                    @csrf
+                    @method('PUT')
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Title</label>
+                        <input type="text" name="name" value="{{$role->name}}" class="form-control mb-3" id="exampleInputEmail1">
+                    </div>
+                    @foreach ($permissions as $permission)
+                        <div class="form-group form-check mb-3">
+                            <input type="checkbox" value="{{$permission->id}}" @if($role->hasPermissionTo($permission->name)) checked @endif name="permissions[]" class="form-check-input" id="exampleCheck{{ $permission->id }}">
+                            <label class="form-check-label" for="exampleCheck{{$permission->id}}">{{$permission->name}}</label>
+                        </div>
+
+                    @endforeach
+
+                    <button type="submit" class="btn btn-outline-success mb-2">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+=== Добавим роль Moderator, Visitor и разрешения
+
+=== Взаимосвязь permissions и roles в Таблице "role_has_permissions"
+
+Эта таблица role_has_permissions реализует связь "многие ко многим" между ролями и разрешениями:
+
+- Одна роль может иметь много разрешений.
+- Одно разрешение может быть присвоено многим ролям.
+- Каждая строка в этой таблице означает, что конкретное разрешение (permission_id) присвоено конкретной роли (role_id).
+
+
+=== Описание PermissionsSeeder
+
+<?php
+
+namespace Database\Seeders; // Пространство имен для сидеров базы данных.
+
+use Illuminate\Database\Seeder; // Базовый класс для всех сидеров Laravel.
+use Spatie\Permission\Models\Permission; // Импортируем модель Permission из пакета Spatie Laravel Permission.
+
+class PermissionsSeeder extends Seeder
+{
+    /**
+     * Этот метод выполняется при запуске данного сидера.
+     */
+    public function run(): void
+    {
+        // Создаем разрешения для различных действий с постами в базе данных.
+        // Каждая строка добавляет новое разрешение в таблицу 'permissions'.
+
+        // Разрешение на просмотр списка всех постов.
+        Permission::create(['name' => 'show posts']);
+
+        // Разрешение на создание новых постов (доступ к форме и сохранение).
+        Permission::create(['name' => 'add posts']);
+
+        // Разрешение на редактирование существующих постов.
+        Permission::create(['name' => 'edit posts']);
+
+        // Разрешение на мягкое удаление постов (перемещение в "корзину").
+        Permission::create(['name' => 'delete posts']);
+
+        // Разрешение на восстановление ранее удаленных постов.
+        Permission::create(['name' => 'restore posts']);
+
+        // Разрешение на полное и безвозвратное удаление постов из базы данных.
+        Permission::create(['name' => 'force delete posts']);
+    }
+}
+
+
+=== Описание RoleController
+
+<?php
+
+namespace App\Http\Controllers; // Объявляет пространство имен для данного файла.
+
+use Spatie\Permission\Models\Role;       // Импортирует класс Role из пакета Spatie Laravel Permission.
+use Spatie\Permission\Models\Permission; // Импортирует класс Permission из пакета Spatie Laravel Permission.
+use Illuminate\Validation\Rule;          // Импортирует класс Rule для расширенной валидации.
+                                         // Используется для правила уникальности с исключением.
+
+use Illuminate\Http\Request;             // Импортирует класс Request из фреймворка Laravel.
+                                         // Используется для доступа к данным HTTP-запроса.
+
+class RoleController extends Controller  // Объявляет класс RoleController, который наследуется от
+                                         // базового контроллера Laravel.
+{
+    /**
+     * Отображает список всех ролей.
+     */
+    public function index() // Определяет публичный метод index.
+    {
+        // $roles=Role::orderBy('name')->where('name', '!=', 'super-user')->get(); // Закомментированная строка для фильтрации.
+        $roles=Role::orderBy('name')->get(); // Получает все записи ролей, отсортированные по имени.
+
+        return view('roles.index', compact('roles')); // Возвращает Blade-представление 'roles.index'.
+    }
+
+    /**
+     * Отображает форму для создания новой роли.
+     */
+    public function create() // Определяет публичный метод create.
+    {
+        $permissions = Permission::orderBy('name')->get(); // Получает все доступные разрешения, отсортированные.
+
+        return view('roles.create', compact([ // Возвращает Blade-представление 'roles.create'.
+            'permissions'                     // Передает коллекцию разрешений в представление.
+        ]));
+    }
+
+    /**
+     * Сохраняет новую роль в базе данных.
+     */
+    public function store(Request $request) // Определяет публичный метод store, принимает Request.
+    {
+        $request->validate([ // Выполняет валидацию входящих данных.
+            // 'name'=>'required|string|max:255', // Оригинальная строка.
+            // Рекомендуемое изменение: Добавлено правило 'unique:roles,name'.
+            // Имя роли: обязательно, строка, до 255 символов, и уникально в таблице 'roles'.
+            'name' => ['required', 'string', 'max:255', 'unique:roles,name'],
+            'permissions'=>'required', // Разрешения: обязательно должно быть выбрано хотя бы одно.
+            'permissions.*'=>'required|integer|exists:permissions,id', // Каждое разрешение: обязательно, целое число, должно существовать по ID.
+        ]);
+
+        $newRole = Role::create([ // Создает новую запись роли в базе данных.
+            'name'=>$request->name, // Присваивает имя роли из запроса.
+        ]);
+        $permissions = Permission::whereIn('id', $request->permissions)->get(); // Получает объекты Permission по их ID.
+
+        $newRole->syncPermissions($permissions); // Синхронизирует разрешения с новой ролью (Spatie метод).
+
+        // Перенаправляем на страницу roles.index.
+        return redirect()->route('roles.index')->with('success', "Role ({$newRole->name}) added!"); // Перенаправляет с сообщением об успехе.
+    }
+
+    /**
+     * Отображает конкретную роль.
+     */
+    public function show(Role $role) // Определяет публичный метод show, принимает экземпляр Role.
+    {
+        // Этот метод не реализован в данном контроллере.
+    }
+
+    /**
+     * Отображает форму для редактирования существующей роли.
+     */
+    public function edit(Role $role) // Определяет публичный метод edit, принимает экземпляр Role.
+    {
+        // Защита от подмены id super-user. Если имя роли 'super-user', будет выброшена 404 ошибка.
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id);
+
+        $permissions = Permission::orderBy('name')->get(); // Получает все доступные разрешения, отсортированные.
+
+        return view('roles.edit', compact([ // Возвращает Blade-представление 'roles.edit'.
+            'permissions',                  // Передает коллекцию всех разрешений.
+            'role',                         // Передает объект редактируемой роли.
+        ]));
+    }
+
+    /**
+     * Обновляет существующую роль в базе данных.
+     */
+    public function update(Request $request, Role $role) // Определяет публичный метод update, принимает Request и Role.
+    {
+        $request->validate([ // Выполняет валидацию входящих данных.
+            // 'name'=>'required|string|max:255', // Оригинальная строка.
+            // Правило Rule::unique('roles', 'name')->ignore($role->id) гарантирует, что имя уникально,
+            // но позволяет текущей редактируемой роли сохранить свое имя.
+            'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($role->id)],
+            'permissions'=>'required', // Разрешения: обязательно должно быть выбрано хотя бы одно.
+            'permissions.*'=>'required|integer|exists:permissions,id', // Каждое разрешение: обязательно, целое число, должно существовать по ID.
+        ]);
+
+        // Защита от подмены id super-user. Если имя роли 'super-user', будет выброшена 404 ошибка.
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id);
+
+        $role->update([ // Обновляет имя роли в базе данных.
+            'name'=>$request->name, // Присваивает новое имя из запроса.
+        ]);
+        $permissions = Permission::whereIn('id', $request->permissions)->get(); // Получает объекты Permission по их ID.
+        $role->syncPermissions($permissions); // Синхронизирует разрешения с обновленной ролью.
+
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) updated!"); // Перенаправляет с сообщением об успехе.
+    }
+
+    /**
+     * Удаляет роль из базы данных.
+     */
+    public function destroy(Role $role) // Определяет публичный метод destroy, принимает экземпляр Role.
+    {
+        // Явная защита: предотвращает удаление роли "super-user".
+        if ($role->name === 'super-user') {
+            return redirect()->route('roles.index')->with('error', 'Роль "super-user" не может быть удалена.');
+        }
+
+        $role->delete(); // Удаляет запись роли из базы данных.
+
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) deleted!"); // Перенаправляет с сообщением об успехе.
+    }
+}
+
+
+=== Описание resources/views/roles/index.blade.php
+
+<x-app-layout>                                     {{-- Основной макет приложения. --}}
+
+    <x-slot name="header">                         {{-- Слот для заголовка страницы. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- Заголовок `h2`. --}}
+            {{ __('Dashboard') }}                  {{-- Локализованный текст "Dashboard". --}}
+        </h2>                                      {{-- Закрывающий тег `h2`. --}}
+    </x-slot>                                      {{-- Закрывающий тег слота 'header'. --}}
+
+    <div class="container mt-6">                   {{-- Bootstrap-контейнер с верхним маржином. --}}
+        <div class="row">                          {{-- Bootstrap-строка для сеточной разметки. --}}
+            <div class="col-md-12">                {{-- Bootstrap-колонка, занимающая всю ширину. --}}
+
+                <a href="{{route('roles.create')}}" class="btn btn-outline-success mb-3">Add new role</a>
+                                                   {{-- Кнопка/ссылка для создания новой роли. --}}
+
+                @foreach ($roles as $role)         {{-- Цикл по коллекции ролей. --}}
+                    <div class="card mb-4">        {{-- Карточка для каждой роли. --}}
+                        <h5 class="card-header">{{$role->name}}</h5> {{-- Заголовок карточки с именем роли. --}}
+                        <div class="card-body">    {{-- Тело карточки. --}}
+                            <a href="{{route('roles.edit', $role->id)}}" class="btn btn-outline-primary">Edit</a>
+                                                   {{-- Кнопка/ссылка для редактирования роли. --}}
+
+                            <form action="{{ route('roles.destroy', $role->id) }}" method="POST" style="display: inline;" onsubmit="return confirmDelete()">
+                                                   {{-- Форма для удаления роли. --}}
+                                @csrf              {{-- CSRF-токен для безопасности. --}}
+                                @method('DELETE')  {{-- Подмена HTTP-метода на DELETE. --}}
+                                <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                                   {{-- Кнопка отправки формы удаления. --}}
+                            </form>                {{-- Закрывающий тег формы. --}}
+
+                        </div>                     {{-- Закрывающий тег `div` card-body. --}}
+                    </div>                         {{-- Закрывающий тег `div` card. --}}
+                @endforeach                        {{-- Конец цикла foreach. --}}
+
+            </div>                                 {{-- Закрывающий тег `div` col-md-12. --}}
+        </div>                                     {{-- Закрывающий тег `div` row. --}}
+    </div>                                         {{-- Закрывающий тег `div` container. --}}
+
+
+</x-app-layout>                                     {{-- Закрывающий тег компонента `x-app-layout`. --}}
+
+<script>                                           {{-- Открывающий тег для JavaScript. --}}
+    function confirmDelete() {                     {{-- Объявление JavaScript-функции `confirmDelete`. --}}
+        return confirm('Вы уверены, что хотите удалить эту роль?'); {{-- Выводит стандартное окно подтверждения браузера. --}}
+                                                                      {{-- Возвращает `true`, если пользователь нажал OK, иначе `false`. --}}
+    }                                              {{-- Закрывающий тег функции `confirmDelete`. --}}
+</script>                                          {{-- Закрывающий тег для JavaScript. --}}
+
+
+
+=== Описание resources/views/roles/create.blade.php
+
+<x-app-layout>                                     {{-- Основной макет приложения. --}}
+
+    <x-slot name="header">                         {{-- Слот для заголовка страницы. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- Заголовок `h2`. --}}
+            {{ __('Dashboard') }}                  {{-- Локализованный текст "Dashboard". --}}
+        </h2>                                      {{-- Закрывающий тег `h2`. --}}
+    </x-slot>                                      {{-- Закрывающий тег слота 'header'. --}}
+
+    <div class="container mt-6">                   {{-- Bootstrap-контейнер с верхним маржином. --}}
+        <div class="row">                          {{-- Bootstrap-строка для сеточной разметки. --}}
+            <div class="col-md-12">                {{-- Bootstrap-колонка, занимающая всю ширину. --}}
+
+                <form method="post" action="{{route('roles.store')}}"> {{-- Форма для создания новой роли. --}}
+                    @csrf                         {{-- CSRF-токен для безопасности. --}}
+                    <div class="form-group">       {{-- Группа формы для поля ввода. --}}
+                        <label for="exampleInputEmail1">Title</label> {{-- Метка для поля ввода. --}}
+                        <input type="text" name="name" class="form-control mb-3" id="exampleInputEmail1" value="{{ old('name') }}">
+                                                   {{-- Поле ввода для названия роли, с Bootstrap-классами. --}}
+                    </div>
+                    @foreach ($permissions as $permission) {{-- Цикл по всем доступным разрешениям. --}}
+                        <div class="form-group form-check mb-3"> {{-- Группа формы для чекбокса разрешения. --}}
+                            <input type="checkbox" value="{{$permission->id}}" name="permissions[]" class="form-check-input" id="exampleCheck">
+                                                   {{-- Чекбокс для выбора разрешения. --}}
+                            <label class="form-check-label" for="exampleCheck{{$permission->id}}">{{$permission->name}}</label>
+                                                   {{-- Метка для чекбокса с именем разрешения. --}}
+                        </div>
+
+                    @endforeach
+
+                    <button type="submit" class="btn btn-outline-success mb-2">Submit</button>
+                                                   {{-- Кнопка отправки формы. --}}
+                </form>                            {{-- Закрывающий тег формы. --}}
+            </div>                                 {{-- Закрывающий тег `div` col-md-12. --}}
+        </div>                                     {{-- Закрывающий тег `div` row. --}}
+    </div>                                         {{-- Закрывающий тег `div` container. --}}
+</x-app-layout>                                    {{-- Закрывающий тег компонента `x-app-layout`. --}}
+
+
+
+=== Описание resources/views/roles/edit.blade.php
+
+<x-app-layout>                                     {{-- Основной макет приложения. --}}
+
+    <x-slot name="header">                         {{-- Слот для заголовка страницы. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- Заголовок `h2`. --}}
+            {{ __('Dashboard') }}                  {{-- Локализованный текст "Dashboard". --}}
+        </h2>                                      {{-- Закрывающий тег `h2`. --}}
+    </x-slot>                                      {{-- Закрывающий тег слота 'header'. --}}
+
+    <div class="container mt-6">                   {{-- Bootstrap-контейнер с верхним маржином. --}}
+        <div class="row">                          {{-- Bootstrap-строка. --}}
+            <div class="col-md-12">                {{-- Bootstrap-колонка, занимающая всю ширину. --}}
+
+                <form method="post" action="{{route('roles.update', $role->id)}}"> {{-- Форма для обновления роли. --}}
+                    @csrf                          {{-- CSRF-токен для безопасности. --}}
+                    @method('PUT')                 {{-- Подмена HTTP-метода на PUT для обновления. --}}
+                    <div class="form-group">       {{-- Группа формы для поля ввода. --}}
+                        <label for="exampleInputEmail1">Title</label> {{-- Метка для поля ввода названия роли. --}}
+                        <input type="text" name="name" value="{{$role->name}}" class="form-control mb-3" id="exampleInputEmail1">
+                                                   {{-- Поле ввода для названия роли, предзаполнено текущим именем. --}}
+                    </div>
+                    @foreach ($permissions as $permission) {{-- Цикл по всем доступным разрешениям. --}}
+                        <div class="form-group form-check mb-3"> {{-- Группа формы для чекбокса разрешения. --}}
+                            <input type="checkbox" value="{{$permission->id}}" @if($role->hasPermissionTo($permission->name)) checked @endif name="permissions[]" class="form-check-input" id="exampleCheck{{ $permission->id }}">
+                                                   {{-- Чекбокс для выбора разрешения, отмечен, если роль уже имеет это разрешение. --}}
+                            <label class="form-check-label" for="exampleCheck{{$permission->id}}">{{$permission->name}}</label>
+                                                   {{-- Метка для чекбокса с именем разрешения. --}}
+                        </div>
+
+                    @endforeach
+
+                    <button type="submit" class="btn btn-outline-success mb-2">Submit</button>
+                                                   {{-- Кнопка отправки формы обновления. --}}
+                </form>                            {{-- Закрывающий тег формы. --}}
+            </div>                                 {{-- Закрывающий тег `div` col-md-12. --}}
+        </div>                                     {{-- Закрывающий тег `div` row. --}}
+    </div>                                         {{-- Закрывающий тег `div` container. --}}
+</x-app-layout>                                    {{-- Закрывающий тег компонента `x-app-layout`. --}}
+
+
+========================================================================================================================
+
+=== Полное Описание resources/views/roles/index.blade.php
+
+
+<x-app-layout>                                     {{-- Открывающий тег компонента Blade `<x-app-layout>`. --}}
+                                                   {{-- Этот компонент (обычно resources/views/layouts/app.blade.php) --}}
+                                                   {{-- является основным макетом приложения. Все содержимое --}}
+                                                   {{-- внутри `x-app-layout` будет вставлено в слот `$slot` --}}
+                                                   {{-- базового макета. --}}
+
+    <x-slot name="header">                         {{-- Открывает именованный слот 'header'. Содержимое этого слота --}}
+                                                   {{-- будет вставлено в соответствующий слот `$header` в `app-layout`. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- Заголовок `h2` с классами Tailwind CSS --}}
+                                                                      {{-- для стилизации: полужирный, большой текст, --}}
+                                                                      {{-- темно-серый цвет, плотная межстрочная высота. --}}
+            {{ __('Dashboard') }}                  {{-- Выводит локализованный текст "Dashboard". --}}
+                                                   {{-- Это отображает заголовок страницы в верхнем разделе макета. --}}
+        </h2>                                      {{-- Закрывающий тег `h2`. --}}
+    </x-slot>                                      {{-- Закрывает именованный слот 'header'. --}}
+
+    <div class="container mt-6">                   {{-- Открывающий тег `div` с Bootstrap-классами. --}}
+                                                   {{-- `container` предоставляет фиксированную ширину контейнера --}}
+                                                   {{-- для содержимого, `mt-6` добавляет верхний маржин (margin-top). --}}
+        <div class="row">                          {{-- Открывающий тег `div` с Bootstrap-классом `row`. --}}
+                                                   {{-- `row` используется для создания горизонтальных групп колонок --}}
+                                                   {{-- в системе сеток Bootstrap. --}}
+            <div class="col-md-12">                {{-- Открывающий тег `div` с Bootstrap-классом `col-md-12`. --}}
+                                                   {{-- Это определяет колонку, которая занимает всю ширину (12 из 12) --}}
+                                                   {{-- на средних и больших экранах. --}}
+
+                <a href="{{route('roles.create')}}" class="btn btn-outline-success mb-3">Add new role</a>
+                                                   {{-- Ссылка для создания новой роли. --}}
+                                                   {{-- `href="{{route('roles.create')}}"`: Генерирует URL для маршрута --}}
+                                                   {{--                                      с именем 'roles.create' --}}
+                                                   {{--                                      (например, `/roles/create`). --}}
+                                                   {{-- `class="btn btn-outline-success mb-3"`: Bootstrap-классы для --}}
+                                                   {{--                                          кнопки: стилизованная кнопка, --}}
+                                                   {{--                                          зеленая обводка, --}}
+                                                   {{--                                          нижний маржин. --}}
+                                                   {{-- `Add new role`: Текст ссылки/кнопки. --}}
+
+                @foreach ($roles as $role)         {{-- Начало цикла Blade `@foreach`. --}}
+                                                   {{-- Перебирает каждый объект `$role` из коллекции `$roles`, --}}
+                                                   {{-- которая была передана из контроллера. --}}
+                    <div class="card mb-4">        {{-- Открывающий тег `div` с Bootstrap-классами `card` и `mb-4`. --}}
+                                                   {{-- `card` создает стилизованный блок контента, --}}
+                                                   {{-- `mb-4` добавляет нижний маржин. --}}
+                        <h5 class="card-header">{{$role->name}}</h5> {{-- Заголовок `h5` внутри карточки с классом `card-header`. --}}
+                                                                      {{-- Отображает имя текущей роли из цикла (например, "user", "admin"). --}}
+                        <div class="card-body">    {{-- Открывающий тег `div` с Bootstrap-классом `card-body`. --}}
+                                                   {{-- Содержимое основного тела карточки. --}}
+                            <a href="{{route('roles.edit', $role->id)}}" class="btn btn-outline-primary">Edit</a>
+                                                   {{-- Ссылка для редактирования текущей роли. --}}
+                                                   {{-- `href="{{route('roles.edit', $role->id)}}"`: Генерирует URL --}}
+                                                   {{--                                             для маршрута 'roles.edit', --}}
+                                                   {{--                                             передавая ID текущей роли. --}}
+                                                   {{-- `class="btn btn-outline-primary"`: Bootstrap-классы для синей --}}
+                                                   {{--                                     кнопки с обводкой. --}}
+                                                   {{-- `Edit`: Текст ссылки/кнопки. --}}
+
+                            <form action="{{ route('roles.destroy', $role->id) }}" method="POST" style="display: inline;" onsubmit="return confirmDelete()">
+                                                   {{-- Форма для удаления роли. --}}
+                                                   {{-- `action="{{ route('roles.destroy', $role->id) }}"`: Генерирует URL --}}
+                                                   {{--                                                для маршрута 'roles.destroy', --}}
+                                                   {{--                                                передавая ID текущей роли. --}}
+                                                   {{-- `method="POST"`: Указывает, что запрос будет отправлен методом POST. --}}
+                                                   {{-- `style="display: inline;"`: Делает форму строчным элементом, чтобы --}}
+                                                   {{--                            кнопка "Delete" была рядом с "Edit". --}}
+                                                   {{-- `onsubmit="return confirmDelete()"`: Вызывает JavaScript-функцию --}}
+                                                   {{-- `confirmDelete()` перед отправкой формы. --}}
+                                                   {{-- Если функция вернет `false`, форма не отправится. --}}
+                                                   {{-- (Эта функция `confirmDelete()` определена в JS). --}}
+                                                   {{-- Форма для удаления роли. Отправляет POST-запрос на маршрут --}}
+                                                   {{-- `roles.destroy` с подтверждением через JS-функцию. --}}
+                                @csrf              {{-- Директива Blade для генерации CSRF-токена. --}}
+                                                   {{-- Это важная мера безопасности для защиты от атак Cross-Site Request Forgery. --}}
+                                @method('DELETE')  {{-- Директива Blade для "подмены" HTTP-метода. --}}
+                                                   {{-- Laravel позволяет использовать PUT, PATCH, DELETE методы через POST-формы, --}}
+                                                   {{-- указывая `@method(...)`. --}}
+                                <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                                   {{-- Кнопка отправки формы. --}}
+                                                   {{-- `type="submit"`: Указывает, что это кнопка для отправки формы. --}}
+                                                   {{-- `class="btn btn-outline-danger"`: Bootstrap-классы для красной --}}
+                                                   {{--                                      кнопки с обводкой. --}}
+                                                   {{-- `Delete`: Текст на кнопке. --}}
+                            </form>                {{-- Закрывающий тег формы. --}}
+
+                        </div>                     {{-- Закрывающий тег `div` для `card-body`. --}}
+                    </div>                         {{-- Закрывающий тег `div` для `card`. --}}
+                @endforeach                        {{-- Конец цикла Blade `@foreach`. --}}
+
+            </div>                                 {{-- Закрывающий тег `div` для `col-md-12`. --}}
+        </div>                                     {{-- Закрывающий тег `div` для `row`. --}}
+    </div>                                         {{-- Закрывающий тег `div` для `container`. --}}
+
+</x-app-layout>                                     {{-- Закрывающий тег компонента Blade `<x-app-layout>`. --}}
+
+<script>                                           {{-- Открывающий тег для JavaScript-кода. --}}
+    function confirmDelete() {                     {{-- Объявление JavaScript-функции `confirmDelete()`. --}}
+        return confirm('Вы уверены, что хотите удалить эту роль?'); {{-- Выводит стандартное окно подтверждения браузера. --}}
+                                                                      {{-- Возвращает `true` (ОК) или `false` (Отмена). --}}
+    }                                              {{-- Закрывающий тег функции `confirmDelete`. --}}
+</script>                                          {{-- Закрывающий тег `<script>`. --}}
+
+
+=== Полное описание resources/views/roles/create.blade.php
+
+<x-app-layout>                                     {{-- Открывающий тег компонента Blade `<x-app-layout>`. --}}
+                                                   {{-- Этот компонент (обычно resources/views/layouts/app.blade.php) --}}
+                                                   {{-- служит основным макетом для большинства страниц приложения, --}}
+                                                   {{-- предоставляя общую структуру (например, навигацию, футер). --}}
+                                                   {{-- Весь код внутри этого тега будет встроен в `$slot` --}}
+                                                   {{-- базового макета. --}}
+
+    <x-slot name="header">                         {{-- Открывает именованный слот 'header'. --}}
+                                                   {{-- Содержимое этого слота будет передано в соответствующий --}}
+                                                   {{-- слот `$header` в базовом макете `x-app-layout`. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- HTML-заголовок `h2` с классами Tailwind CSS --}}
+                                                                      {{-- для стилизации: --}}
+                                                                      {{-- `font-semibold`: полужирный текст. --}}
+                                                                      {{-- `text-xl`: крупный размер текста. --}}
+                                                                      {{-- `text-gray-800`: темно-серый цвет текста. --}}
+                                                                      {{-- `leading-tight`: уменьшенная межстрочная высота. --}}
+            {{ __('Dashboard') }}                  {{-- Выводит локализованный текст "Dashboard". --}}
+                                                   {{-- Это отображает заголовок страницы в верхней части макета. --}}
+        </h2>                                      {{-- Закрывающий тег `h2`. --}}
+    </x-slot>                                      {{-- Закрывает именованный слот 'header'. --}}
+
+    <div class="container mt-6">                   {{-- Открывающий тег `div` с классами Bootstrap. --}}
+                                                   {{-- `container`: предоставляет адаптивный контейнер фиксированной --}}
+                                                   {{--              ширины для содержимого. --}}
+                                                   {{-- `mt-6`: добавляет верхний маржин (margin-top) в 6 единиц. --}}
+        <div class="row">                          {{-- Открывающий тег `div` с Bootstrap-классом `row`. --}}
+                                                   {{-- `row`: используется для создания горизонтальных групп колонок --}}
+                                                   {{--        в сеточной системе Bootstrap. --}}
+            <div class="col-md-12">                {{-- Открывающий тег `div` с Bootstrap-классом `col-md-12`. --}}
+                                                   {{-- `col-md-12`: определяет колонку, которая занимает всю ширину --}}
+                                                   {{--              (12 из 12) на средних (`md`) и больших экранах. --}}
+
+                <form method="post" action="{{route('roles.store')}}"> {{-- Открывающий тег HTML-формы. --}}
+                                                                      {{-- `method="post"`: указывает, что данные формы --}}
+                                                                      {{--                  будут отправлены методом POST. --}}
+                                                                      {{-- `action="{{route('roles.store')}}"`: динамически --}}
+                                                                      {{--                                      генерирует URL --}}
+                                                                      {{--                                      для маршрута --}}
+                                                                      {{--                                      с именем 'roles.store', --}}
+                                                                      {{--                                      куда будут отправлены --}}
+                                                                      {{--                                      данные формы. --}}
+                    @csrf                          {{-- Директива Blade для генерации CSRF-токена. --}}
+                                                   {{-- Это необходимая мера безопасности для защиты --}}
+                                                   {{-- от атак Cross-Site Request Forgery (CSRF). --}}
+                    <div class="form-group">       {{-- Открывающий тег `div` с Bootstrap-классом `form-group`. --}}
+                                                   {{-- Используется для группировки метки и элемента формы. --}}
+                        <label for="exampleInputEmail1">Title</label> {{-- HTML-метка для поля ввода. --}}
+                                                                      {{-- `for="exampleInputEmail1"` связывает метку с --}}
+                                                                      {{--                           полем ввода по ID. --}}
+                                                                      {{-- `Title`: отображаемый текст метки. --}}
+                        <input type="text" name="name" class="form-control mb-3" id="exampleInputEmail1" value="{{ old('name') }}">
+                                                   {{-- HTML-поле ввода текста. --}}
+                                                   {{-- `type="text"`: указывает на текстовый ввод. --}}
+                                                   {{-- `name="name"`: имя поля, под которым его значение будет --}}
+                                                   {{--                доступно в запросе контроллера. --}}
+                                                   {{-- `class="form-control mb-3"`: Bootstrap-классы для стилизации --}}
+                                                   {{--                               поля ввода и добавления --}}
+                                                   {{--                               нижнего маржина. --}}
+                                                   {{-- `id="exampleInputEmail1"`: уникальный идентификатор поля (для метки). --}}
+                                                   {{-- `value="{{ old('name') }}"`: устанавливает значение поля из --}}
+                                                   {{--                               предыдущего запроса (если форма --}}
+                                                   {{--                               была отправлена с ошибками валидации), --}}
+                                                   {{--                               чтобы пользователь не терял введенные данные. --}}
+                    </div>                         {{-- Закрывающий тег `div` для `form-group`. --}}
+                    @foreach ($permissions as $permission) {{-- Начало цикла Blade `@foreach`. --}}
+                                                         {{-- Перебирает каждый объект `$permission` --}}
+                                                         {{-- из коллекции `$permissions`, которая была --}}
+                                                         {{-- передана из контроллера. --}}
+                        <div class="form-group form-check mb-3"> {{-- Открывающий тег `div` для группы чекбокса. --}}
+                                                                {{-- `form-group` и `form-check`: Bootstrap-классы --}}
+                                                                {{--                              для стилизации чекбокса --}}
+                                                                {{--                              и его метки. --}}
+                                                                {{-- `mb-3`: добавляет нижний маржин. --}}
+                            <input type="checkbox" value="{{$permission->id}}" name="permissions[]" class="form-check-input" id="exampleCheck">
+                                                   {{-- HTML-чекбокс. --}}
+                                                   {{-- `type="checkbox"`: определяет элемент как чекбокс. --}}
+                                                   {{-- `value="{{$permission->id}}"`: значение, которое будет --}}
+                                                   {{--                                 отправлено, если чекбокс выбран --}}
+                                                   {{--                                 (ID разрешения). --}}
+                                                   {{-- `name="permissions[]"`: указывает, что это поле является --}}
+                                                   {{--                       частью массива 'permissions', --}}
+                                                   {{--                       позволяя отправлять несколько выбранных --}}
+                                                   {{--                       значений. --}}
+                                                   {{-- `class="form-check-input"`: Bootstrap-класс для стилизации чекбокса. --}}
+                                                   {{-- `id="exampleCheck"`: уникальный идентификатор поля (для метки). --}}
+                            <label class="form-check-label" for="exampleCheck{{$permission->id}}">{{$permission->name}}</label>
+                                                   {{-- HTML-метка для чекбокса. --}}
+                                                   {{-- `class="form-check-label"`: Bootstrap-класс для стилизации метки. --}}
+                                                   {{-- `for="exampleCheck{{$permission->id}}"`: связывает метку с --}}
+                                                   {{--                                          чекбоксом по ID. --}}
+                                                   {{--                                          `exampleCheck` + ID разрешения --}}
+                                                   {{--                                          делает ID уникальным. --}}
+                                                   {{-- `{{$permission->name}}`: отображает имя разрешения --}}
+                                                   {{--                           (например, "show posts"). --}}
+                        </div>                     {{-- Закрывающий тег `div` для `form-group form-check`. --}}
+
+                    @endforeach                    {{-- Конец цикла Blade `@foreach`. --}}
+
+                    <button type="submit" class="btn btn-outline-success mb-2">Submit</button>
+                                                   {{-- HTML-кнопка для отправки формы. --}}
+                                                   {{-- `type="submit"`: указывает, что это кнопка для отправки формы. --}}
+                                                   {{-- `class="btn btn-outline-success mb-2"`: Bootstrap-классы для --}}
+                                                   {{--                                          зеленой кнопки с обводкой --}}
+                                                   {{--                                          и нижним маржином. --}}
+                                                   {{-- `Submit`: текст на кнопке. --}}
+                </form>                            {{-- Закрывающий тег формы. --}}
+            </div>                                 {{-- Закрывающий тег `div` для `col-md-12`. --}}
+        </div>                                     {{-- Закрывающий тег `div` для `row`. --}}
+    </div>                                         {{-- Закрывающий тег `div` для `container`. --}}
+</x-app-layout>                                     {{-- Закрывающий тег компонента `x-app-layout`. --}}
+
+
+=== Полное описание resources/views/roles/edit.blade.php
+
+<x-app-layout>                                     {{-- Открывающий тег компонента Blade `<x-app-layout>`. --}}
+                                                   {{-- Этот компонент (обычно resources/views/layouts/app.blade.php) --}}
+                                                   {{-- служит основным макетом для большинства страниц приложения, --}}
+                                                   {{-- предоставляя общую структуру (например, навигацию, футер). --}}
+                                                   {{-- Весь код внутри этого тега будет встроен в слот `$slot` --}}
+                                                   {{-- базового макета. --}}
+
+    <x-slot name="header">                         {{-- Открывает именованный слот 'header'. --}}
+                                                   {{-- Содержимое этого слота будет передано в соответствующий --}}
+                                                   {{-- слот `$header` в базовом макете `x-app-layout`. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- HTML-заголовок `h2` с классами Tailwind CSS --}}
+                                                                      {{-- для стилизации: --}}
+                                                                      {{-- `font-semibold`: полужирный текст. --}}
+                                                                      {{-- `text-xl`: крупный размер текста. --}}
+                                                                      {{-- `text-gray-800`: темно-серый цвет текста. --}}
+                                                                      {{-- `leading-tight`: уменьшенная межстрочная высота. --}}
+            {{ __('Dashboard') }}                  {{-- Выводит локализованный текст "Dashboard". --}}
+                                                   {{-- Этот текст отображает заголовок страницы в верхней части макета. --}}
+        </h2>                                      {{-- Закрывающий тег `h2`. --}}
+    </x-slot>                                      {{-- Закрывает именованный слот 'header'. --}}
+
+    <div class="container mt-6">                   {{-- Открывающий тег `div` с классами Bootstrap. --}}
+                                                   {{-- `container`: предоставляет адаптивный контейнер фиксированной --}}
+                                                   {{--              ширины для содержимого. --}}
+                                                   {{-- `mt-6`: добавляет верхний маржин (margin-top) в 6 единиц. --}}
+        <div class="row">                          {{-- Открывающий тег `div` с Bootstrap-классом `row`. --}}
+                                                   {{-- `row`: используется для создания горизонтальных групп колонок --}}
+                                                   {{--        в сеточной системе Bootstrap. --}}
+            <div class="col-md-12">                {{-- Открывающий тег `div` с Bootstrap-классом `col-md-12`. --}}
+                                                   {{-- `col-md-12`: определяет колонку, которая занимает всю ширину --}}
+                                                   {{--              (12 из 12) на средних (`md`) и больших экранах. --}}
+
+                <form method="post" action="{{route('roles.update', $role->id)}}"> {{-- Открывающий тег HTML-формы. --}}
+                                                                      {{-- `method="post"`: указывает, что данные формы --}}
+                                                                      {{--                  будут отправлены методом POST. --}}
+                                                                      {{-- `action="{{route('roles.update', $role->id)}}"`: --}}
+                                                                      {{--                  динамически генерирует URL --}}
+                                                                      {{--                  для маршрута 'roles.update', --}}
+                                                                      {{--                  передавая ID текущей роли --}}
+                                                                      {{--                  для обновления. --}}
+                    @csrf                         {{-- Директива Blade для генерации CSRF-токена. --}}
+                                                   {{-- Это необходимая мера безопасности для защиты --}}
+                                                   {{-- от атак Cross-Site Request Forgery (CSRF). --}}
+                    @method('PUT')                 {{-- Директива Blade для "подмены" HTTP-метода. --}}
+                                                   {{-- Laravel позволяет отправлять запросы PUT/PATCH/DELETE --}}
+                                                   {{-- через POST-формы, указывая `@method(...)`. --}}
+                                                   {{-- Это преобразует POST-запрос в PUT для метода `update` контроллера. --}}
+                    <div class="form-group">       {{-- Открывающий тег `div` с Bootstrap-классом `form-group`. --}}
+                                                   {{-- Используется для группировки метки и элемента формы. --}}
+                        <label for="exampleInputEmail1">Title</label> {{-- HTML-метка для поля ввода названия роли. --}}
+                                                                      {{-- `for="exampleInputEmail1"` связывает метку с --}}
+                                                                      {{--                           полем ввода по ID. --}}
+                                                                      {{-- `Title`: отображаемый текст метки. --}}
+                        <input type="text" name="name" value="{{$role->name}}" class="form-control mb-3" id="exampleInputEmail1">
+                                                   {{-- HTML-поле ввода текста. --}}
+                                                   {{-- `type="text"`: указывает на текстовый ввод. --}}
+                                                   {{-- `name="name"`: имя поля, под которым его значение будет --}}
+                                                   {{--                доступно в запросе контроллера. --}}
+                                                   {{-- `value="{{$role->name}}"`: предзаполняет поле текущим --}}
+                                                   {{--                                названием роли для редактирования. --}}
+                                                   {{-- `class="form-control mb-3"`: Bootstrap-классы для стилизации --}}
+                                                   {{--                               поля ввода и добавления --}}
+                                                   {{--                               нижнего маржина. --}}
+                                                   {{-- `id="exampleInputEmail1"`: уникальный идентификатор поля (для метки). --}}
+                    </div>                         {{-- Закрывающий тег `div` для `form-group`. --}}
+                    @foreach ($permissions as $permission) {{-- Начало цикла Blade `@foreach`. --}}
+                                                         {{-- Перебирает каждый объект `$permission` --}}
+                                                         {{-- из коллекции `$permissions`, которая была --}}
+                                                         {{-- передана из контроллера. --}}
+                        <div class="form-group form-check mb-3"> {{-- Открывающий тег `div` для группы чекбокса. --}}
+                                                                {{-- `form-group` и `form-check`: Bootstrap-классы --}}
+                                                                {{--                              для стилизации чекбокса --}}
+                                                                {{--                              и его метки. --}}
+                                                                {{-- `mb-3`: добавляет нижний маржин. --}}
+                            <input type="checkbox" value="{{$permission->id}}" @if($role->hasPermissionTo($permission->name)) checked @endif name="permissions[]" class="form-check-input" id="exampleCheck{{ $permission->id }}">
+                                                   {{-- HTML-чекбокс. --}}
+                                                   {{-- `type="checkbox"`: определяет элемент как чекбокс. --}}
+                                                   {{-- `value="{{$permission->id}}"`: значение, которое будет --}}
+                                                   {{--                                 отправлено, если чекбокс выбран --}}
+                                                   {{--                                 (ID разрешения). --}}
+                                                   {{-- `name="permissions[]"`: указывает, что это поле является --}}
+                                                   {{--                       частью массива 'permissions', --}}
+                                                   {{--                       позволяя отправлять несколько выбранных --}}
+                                                   {{--                       значений. --}}
+                                                   {{-- `@if($role->hasPermissionTo($permission->name)) checked @endif`: --}}
+                                                   {{--      Условная директива Blade, которая проверяет, имеет ли --}}
+                                                   {{--      текущая `$role` данное `$permission`. Если имеет, --}}
+                                                   {{--      добавляет атрибут `checked` к чекбоксу, делая его отмеченным. --}}
+                                                   {{-- `class="form-check-input"`: Bootstrap-класс для стилизации чекбокса. --}}
+                                                   {{-- `id="exampleCheck{{ $permission->id }}"`: уникальный --}}
+                                                   {{--                                          идентификатор поля (для метки). --}}
+                                                   {{--                                          `exampleCheck` + ID разрешения --}}
+                                                   {{--                                          делает ID уникальным для каждого чекбокса. --}}
+                            <label class="form-check-label" for="exampleCheck{{$permission->id}}">{{$permission->name}}</label>
+                                                   {{-- HTML-метка для чекбокса. --}}
+                                                   {{-- `class="form-check-label"`: Bootstrap-класс для стилизации метки. --}}
+                                                   {{-- `for="exampleCheck{{$permission->id}}"`: связывает метку с --}}
+                                                   {{--                                          чекбоксом по ID. --}}
+                                                   {{-- `{{$permission->name}}`: отображает имя разрешения --}}
+                                                   {{--                           (например, "show posts"). --}}
+                        </div>                     {{-- Закрывающий тег `div` для `form-group form-check`. --}}
+
+                    @endforeach                    {{-- Конец цикла Blade `@foreach`. --}}
+
+                    <button type="submit" class="btn btn-outline-success mb-2">Submit</button>
+                                                   {{-- HTML-кнопка для отправки формы. --}}
+                                                   {{-- `type="submit"`: указывает, что это кнопка для отправки формы. --}}
+                                                   {{-- `class="btn btn-outline-success mb-2"`: Bootstrap-классы для --}}
+                                                   {{--                                          зеленой кнопки с обводкой --}}
+                                                   {{--                                          и нижним маржином. --}}
+                                                   {{-- `Submit`: текст на кнопке. --}}
+                </form>                            {{-- Закрывающий тег формы. --}}
+            </div>                                 {{-- Закрывающий тег `div` для `col-md-12`. --}}
+        </div>                                     {{-- Закрывающий тег `div` для `row`. --}}
+    </div>                                         {{-- Закрывающий тег `div` для `container`. --}}
+</x-app-layout>                                    {{-- Закрывающий тег компонента `x-app-layout`. --}}
+
+
+=== Описание основных переходов и взаимодействия в системе управления ролями (как пример).
+
+Общая логика:
+Вы кликаете по ссылке/кнопке в Blade.
+
+route() функция генерирует URL, который будет обрабатываться Laravel.
+
+Браузер отправляет соответствующий HTTP-запрос (GET/POST/PUT/DELETE) на сгенерированный URL.
+
+Route::resource в routes/web.php перехватывает запрос и направляет его в нужный метод RoleController.
+
+Метод в RoleController выполняет логику (загрузка/сохранение данных) и возвращает другое Blade-представление или перенаправление.
+
+Laravel рендерит представление или отправляет команду браузеру на перенаправление.
+
+1. Переход на страницу "Добавить новую роль" (Create)
+Нажимаем: кнопку/ссылку "Add new role" на index.blade.php
+
+Вызывает: route('roles.create'), который генерирует URL /roles/create.
+
+Переходит: Браузер отправляет GET-запрос на /roles/create.
+
+Формирует маршрут: Route::resource сопоставляет /roles/create с методом create() в RoleController.
+
+Возвращает: RoleController@create готовит данные (список всех разрешений) и возвращает представление resources/views/roles/create.blade.php.
+
+2. Сохранение новой роли (Store)
+Нажимаем: кнопку "Submit" на форме в create.blade.php
+
+Вызывает: Форма отправляет POST-запрос на route('roles.store') (URL /roles).
+
+Формирует маршрут: Route::resource сопоставляет POST /roles с методом store(Request $request) в RoleController.
+
+Возвращает: RoleController@store валидирует данные, создает роль, синхронизирует разрешения и перенаправляет (redirect()) 
+на route('roles.index').
+
+Переходит: Браузер выполняет перенаправление, отправляя GET-запрос на /roles.
+
+Формирует маршрут: Route::resource сопоставляет GET /roles с методом index() в RoleController.
+
+Возвращает: RoleController@index загружает список ролей и возвращает представление resources/views/roles/index.blade.php 
+(теперь с новой ролью и сообщением об успехе).
+
+3. Переход на страницу "Редактировать роль" (Edit)
+Нажимаем: кнопку/ссылку "Edit" для конкретной роли на index.blade.php
+
+Вызывает: route('roles.edit', $role->id), который генерирует URL /roles/{id}/edit (например, /roles/3/edit).
+
+Переходит: Браузер отправляет GET-запрос на /roles/{id}/edit.
+
+Формирует маршрут: Route::resource сопоставляет /roles/{id}/edit с методом edit(Role $role) в RoleController.
+
+Возвращает: RoleController@edit находит конкретную роль (с защитой от super-user), получает все разрешения и возвращает 
+представление resources/views/roles/edit.blade.php.
+
+4. Обновление существующей роли (Update)
+Нажимаем: кнопку "Submit" на форме в edit.blade.php
+
+Вызывает: Форма отправляет POST-запрос на route('roles.update', $role->id) (URL /roles/{id}).
+
+Подмена метода: Директива @method('PUT') в форме указывает Laravel обрабатывать его как PUT-запрос.
+
+Формирует маршрут: Route::resource сопоставляет PUT /roles/{id} с методом update(Request $request, Role $role) в RoleController.
+
+Возвращает: RoleController@update валидирует данные, обновляет роль, синхронизирует разрешения и перенаправляет (redirect()) 
+на route('roles.index').
+
+Переходит: Браузер выполняет перенаправление, отправляя GET-запрос на /roles.
+
+Формирует маршрут: Route::resource сопоставляет GET /roles с методом index() в RoleController.
+
+Возвращает: RoleController@index загружает список ролей и возвращает представление resources/views/roles/index.blade.php 
+(теперь с обновленной ролью и сообщением об успехе).
+
+5. Удаление роли (Destroy)
+Нажимаем: кнопку "Delete" для конкретной роли на index.blade.php
+
+Вызывает: onsubmit="return confirmDelete()" вызывает JavaScript-функцию подтверждения. Если пользователь подтверждает, форма отправляется.
+
+Вызывает: Форма отправляет POST-запрос на route('roles.destroy', $role->id) (URL /roles/{id}).
+
+Подмена метода: Директива @method('DELETE') в форме указывает Laravel обрабатывать его как DELETE-запрос.
+
+Формирует маршрут: Route::resource сопоставляет DELETE /roles/{id} с методом destroy(Role $role) в RoleController.
+
+Возвращает: RoleController@destroy удаляет роль (с защитой от super-user) и перенаправляет (redirect()) на route('roles.index').
+
+Переходит: Браузер выполняет перенаправление, отправляя GET-запрос на /roles.
+
+Формирует маршрут: Route::resource сопоставляет GET /roles с методом index() в RoleController.
+
+Возвращает: RoleController@index загружает список ролей и возвращает представление resources/views/roles/index.blade.php (теперь 
+без удаленной роли и с сообщением об успехе).
+
+==================================================================================================
+
