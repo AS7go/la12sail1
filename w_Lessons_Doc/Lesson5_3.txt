@@ -1,0 +1,357 @@
+=== Урок 5_3: Spatie Permissions. Управление доступом: Blade @can и middleware ролей/разрешений.
+
+============================================
+=== Laravel 12 === ~/project1/la12sail1 ===
+============================================
+    GitHub (урок 5_3):
+https://github.com/AS7go/la12sail1/tree/lesson_05_3
+
+    GitHub Текстовое Описание урока 
+https://github.com/AS7go/la12sail1/blob/lesson_05_3/w_Lessons_Doc/Lesson5_3.txt
+
+Документация:
+
+    Laravel 12
+https://laravel.com/docs/12.x/installation
+    Laravel 12 csrf
+https://laravel.com/docs/12.x/csrf
+
+    Spatie v6
+https://spatie.be/docs/laravel-permission/v6/installation-laravel
+
+    Bootstrap 5
+https://getbootstrap.com/docs/5.0/getting-started/introduction/
+    Стиль кнопок Bootstrap 5
+https://getbootstrap.com/docs/5.0/components/buttons/
+    Стили Форм
+https://getbootstrap.com/docs/5.0/forms/form-control/
+
+--- Открыть терминал.
+--- Перейти в директорию проекта.
+cd project1/la12sail1
+
+--- Запустить VScode.
+code .
+
+--- Запустить контейнеры
+sail up -d
+
+--- Работаем с проектом
+
+--- Перед закрытием проекта желательно остановить контейнеры:
+sail down
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- Команды Git
+
+хх - номер урока, например (lesson_05)
+    // Добавляет все измененные файлы в индекс (staging area) для следующего коммита.
+git add .
+
+    // Создает новый коммит с указанным комментарием. Комментарий должен описывать изменения.
+git commit -m 'your comment'
+
+    // Переключает текущую ветку на ветку 'main'. Все последующие изменения будут вноситься в эту ветку.
+git checkout main
+
+    // Объединяет (сливает) изменения из ветки 'lesson_хх' в текущую ветку (в данном случае, в 'main').
+git merge lesson_хх
+
+    // Создает новую ветку с именем 'lesson_хх' на основе ветки 'main' и сразу же переключается на нее.
+git checkout -b lesson_хх main
+
+        // !Внимательно - Принудительно удаляет ветку 'lesson_хх', если в ветке есть неслитые изменения.
+    git branch -D lesson_хх
+
+        // !Внимательно - Альтернативный синтаксис для принудительного удаления ветки.
+    git branch --delete --force lesson_хх
+
+        // !Внимательно - "Безопасное" удаление, если ветка полностью замержена (слита в main)
+    git branch -d lesson_хх
+        или 
+    git branch --delete lesson_хх
+
+===============================================================================================================
+
+--- Переходим по ссылке и читаем про "$role->hasPermissionTo('...');" :
+
+https://spatie.be/docs/laravel-permission/v6/basic-usage/role-permissions
+
+
+--- перенесены строки и добавлено описание в файле resources/views/roles/edit.blade.php (код тот же)
+
+                    @foreach ($permissions as $permission) {{-- Начинаем цикл по коллекции разрешений. --}}
+                        <div class="form-group form-check mb-3"> {{-- Группа формы для чекбокса Bootstrap с отступом. --}}
+                            <input type="checkbox"
+                                value="{{ $permission->id }}" {{-- Значение чекбокса - ID разрешения. --}}
+                                @if($role->hasPermissionTo($permission->name)) {{-- Если роль имеет это разрешение... --}}
+                                    checked {{-- ...чекбокс отмечается. --}}
+                                @endif
+                                name="permissions[]" {{-- Имя поля для отправки как массив (позволяет выбрать несколько). --}}
+                                class="form-check-input" {{-- Классы Bootstrap для стилизации чекбокса. --}}
+                                id="exampleCheck{{ $permission->id }}"> {{-- Уникальный ID для чекбокса (для связи с меткой). --}}
+                            <label class="form-check-label"
+                                for="exampleCheck{{ $permission->id }}">{{ $permission->name }}</label> {{-- Метка для чекбокса с именем разрешения. --}}
+                        </div>
+                    @endforeach {{-- Завершаем цикл. --}}
+
+--- resources/views/roles/create.blade.php
+Кнопку Submit меняем на Add Role
+
+--- resources/views/roles/edit.blade.php
+Кнопку Submit меняем на Edit Role
+
+=== Ограничения для прав доступа
+https://spatie.be/docs/laravel-permission/v6/basic-usage/blade-directives
+
+@can — это удобный способ в вашем Blade-шаблоне быстро проверить, есть ли у текущего пользователя определенное 
+разрешение (напрямую или через роль). Может ли он выполнить определенное действие над ресурсом.
+
+Мы реализуем @can — для управления видимостью элементов пользовательского интерфейса. 
+
+Например, чтобы:
+- Показать кнопку "Редактировать" только пользователям, у которых есть право Редактирования.
+- Показать кнопку "Добавить пост" только пользователям, у которых есть право Добавлять посты.
+... (другие кнопки)
+- Отобразить пункт меню "Управление пользователями" только администраторам.
+- Позволить пользователю видеть содержимое, если он является владельцем или имеет специальное разрешение.
+
+=== Реализация через Роуты
+https://spatie.be/docs/laravel-permission/v6/basic-usage/middleware
+
+=== Описание маршрутов routes/web.php
+
++----------------------------------+--------+-------------+--------------+------------------------------------+
+|                                  | HTTP   | Метод       | Название     |                                    |
+|  Laravel Route                   | метод  | контроллера | маршрута     | Назначение                         |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+| Route::get('/')                  | GET    | view        | —            | Главная страница (welcome)         |
+| Route::get('/dashboard')         | GET    | index       | dashboard    | Список всех постов (Панель управ.) |
+| Route::get('add-post')           | GET    | create      | add-post     | Форма создания поста               |
+| Route::post('store-post')        | POST   | store       | store-post   | Сохранение нового поста            |
+| Route::get('edit-post/{id}')     | GET    | edit        | edit-post    | Форма редактирования поста id      |
+| Route::put('update-post/{id}')   | PUT    | update      | update-post  | Обновление поста id                |
+| Route::delete('delete-post/{id}')| DELETE | destroy     | delete-post  | Удаление поста id                  |
+| Route::post('restore-post/{id}') | POST   | restore     | restore-post | Восстановление удалённого поста id |
++----------------------------------+--------+-------------+--------------+------------------------------------+
+
+
++-------------------------+--------+------------+-------------------+------------------------------------+------------------------------+
+| URI                     | HTTP   | Методы     | Название маршрута | Назначение                         | Middleware/Can               |
+|                         | метод |PostController|                  |                                    |                              |
++-------------------------+--------+------------+-------------------+------------------------------------+------------------------------+
+| /                       | GET    | (welcome)  | —                 | Главная страница (welcome)         | —                            |
+| /dashboard              | GET    | index      | dashboard         | Список всех постов (Панель упр.)   | auth, can:show posts         |
+| /add-post               | GET    | create     | add-post          | Форма создания поста               | auth, can:add posts          |
+| /store-post             | POST   | store      | store-post        | Сохранение нового поста            | auth, can:add posts          |
+| /edit-post/{id}         | GET    | edit       | edit-post         | Форма редактирования поста по ID   | auth, can:edit posts         |
+| /update-post/{id}       | PUT    | update     | update-post       | Обновление поста по ID             | auth, can:edit posts         |
+| /restore-post/{id}      | POST   | restore    | restore-post      | Восстановление удалённого поста ID | auth, can:restore posts      |
+| /delete-post/{id}       | DELETE | destroy    | delete-post       | Удаление поста по ID               | auth, can:delete posts       |
+| /force-delete-post/{id} | DELETE | forceDelete| force-delete-post | Принудительное удаление поста ID   | auth, can:force delete posts |
++-------------------------+--------+------------+-------------------+------------------------------------+------------------------------+
+
++--------------------------------------------------------------------------------------------------------------------------------+
+| Автоматические Маршруты "под капотом" Route::resource('roles', RoleController::class):                                         |
++--------------------+--------+--------+-------------------+------------------------------------+--------------------------------+
+| URI                | HTTP   | метод  | Название маршрута | Назначение                         | Middleware/Can                 |
++--------------------+--------+--------+-------------------+------------------------------------+--------------------------------+
+| /roles             | GET    | index  | roles.index       | Список всех ролей                  | auth                           |
+| /roles/create      | GET    | create | roles.create      | Форма создания роли                | auth                           |
+| /roles             | POST   | store  | roles.store       | Сохранение новой роли              | auth                           |
+| /roles/{role}      | GET    | show   | roles.show        | Отображение одной роли по ID       | auth                           |
+| /roles/{role}/edit | GET    | edit   | roles.edit        | Форма редактирования роли по ID    | auth                           |
+| /roles/{role}      | PUT    | update | roles.update      | Обновление роли по ID              | auth                           |
+| /roles/{role}      | DELETE | destroy| roles.destroy     | Удаление роли по ID                | auth                           |
++--------------------+--------+--------+-------------------+------------------------------------+--------------------------------+
+
+
+--- Редактируем маршруты routes/web.php, добавляем ->middleware('can:разрешение') из database/seeders/PermissionsSeeder.php
+получаем готовый файл routes/web.php
+
+<?php
+
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PostController;
+use App\Http\Controllers\RoleController;
+
+
+Route::get('/', function () {
+    return view('welcome');
+});
+
+Route::middleware('auth')->group(function () { // <-- Здесь применяется middleware 'auth' ко всей группе
+
+    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard')->middleware('can:show posts');
+    Route::get('add-post', [PostController::class, 'create'])->name('add-post')->middleware('can:add posts');
+    Route::post('store-post', [PostController::class, 'store'])->name('store-post')->middleware('can:add posts');
+    Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post')->middleware('can:edit posts');
+    Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post')->middleware('can:edit posts');
+    Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post')->middleware('can:restore posts');
+    Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post')->middleware('can:delete posts');
+    Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post')->middleware('can:force delete posts');
+
+    Route::resource('roles', RoleController::class);  // Все методы в одном маршруте (resource)
+
+    // Маршруты ниже создаются автоматически в Laravel starter kits (например, Breeze или Jetstream), 
+    // предоставляя базовое управление профилем пользователя и аутентификацию.
+    // Пока их не трогаем. Это другое меню profile, которое мы не используем.
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+});
+
+require __DIR__.'/auth.php';  // <-- Здесь загружаются маршруты аутентификации Breeze, включая логин/регистрацию
+
+
+=== Описание пример - В контексте нашего кода, где маршрут 
+Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post')->middleware('can:edit posts'); 
+определен с "middleware('can:edit posts')":
+
+Если у текущего пользователя нет разрешения "edit posts", он не сможет выполнить этот маршрут. 
+В таком случае, "middleware('can:edit posts')" перехватит запрос до того, как он достигнет метода 
+контроллера "edit" в PostController. 
+Laravel автоматически сгенерирует ошибку HTTP 403 Forbidden (Доступ запрещен), и выполнение кода в методе 
+контроллера "edit" не произойдет.
+
+=== в файле bootstrap/app.php (Для Laravel11, Laravel 12)
+Использовать middleware для контроля доступа на основе ролей и прав.
+https://spatie.be/docs/laravel-permission/v6/basic-usage/middleware
+
+Регистрация Middleware в bootstrap/app.php (для Laravel 11+):
+В Laravel 11 и выше (включая Laravel 12) регистрация middleware происходит в файле bootstrap/app.php. Нужно добавить следующий код
+
+        $middleware->alias([
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        ]);
+
+в функцию withMiddleware():
+
+=== Добавляем middleware('role:super-user') в routes/web.php
+
+Route::resource('roles', RoleController::class)->middleware('role:super-user'); // Применяется после добавления middleware в bootstrap/app.php
+
+// Объяснение:
+Только пользователь с ролью 'super-user' может иметь доступ ко всем методам RoleController.
+
+// Если нужно, чтобы доступ имели НЕ ТОЛЬКО 'super-user', но и 'менеджер' или другие конкретные роли,
+// следует указать все необходимые роли через символ '|' в middleware 'role', например:
+
+Route::resource('roles', RoleController::class)->middleware('role:super-user|manager|admin');
+
+// Или, если вы хотите дать доступ пользователям, обладающим определённым разрешением (которое может быть
+// присвоено нескольким ролям, например, 'управление ролями'), используйте middleware 'can':
+
+// Route::resource('roles', RoleController::class)->middleware('can:manage roles');
+
+// Если оставить Route::resource('roles', RoleController::class); без дополнительных middleware,
+// то (при нахождении в группе 'auth') любой авторизованный пользователь сможет получить доступ.
+
+
+=== добавляем видимость/невидимость в resources/views/layouts/navigation.blade.php
+
+@role('super-user')
+<x-nav-link :href="route('roles.index')" :active="request()->routeIs('roles.index')">
+    Roles
+</x-nav-link>
+@endrole
+
+--- Вход под "test1"
+http://localhost/
+test1@gmail.com
+12345678
+
+=== Описание routes/web.php
+
+<?php
+
+use App\Http\Controllers\ProfileController; // Импортирует ProfileController для управления профилем пользователя.
+use Illuminate\Support\Facades\Route;       // Импортирует фасад Route для определения маршрутов в Laravel.
+use App\Http\Controllers\PostController;    // Импортирует PostController для работы с постами.
+use App\Http\Controllers\RoleController;    // Импортирует RoleController для работы с ролями.
+
+
+Route::get('/', function () {               // Определяет GET-маршрут для корневого URL ('/').
+    return view('welcome');                 // Возвращает Blade-представление 'welcome'.
+});
+
+
+// Группа маршрутов, требующая аутентификации пользователя для доступа.
+Route::middleware('auth')->group(function () {
+
+    // Маршрут для панели управления (Dashboard).
+    // Доступен по GET-запросу на '/dashboard', вызывает метод 'index' PostController'а.
+    // Называется 'dashboard' и требует разрешение 'show posts'.
+    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard')->middleware('can:show posts');
+
+    // Маршрут для формы создания поста.
+    // Доступен по GET-запросу на 'add-post', вызывает метод 'create' PostController'а.
+    // Называется 'add-post' и требует разрешение 'add posts'.
+    Route::get('add-post', [PostController::class, 'create'])->name('add-post')->middleware('can:add posts');
+
+    // Маршрут для сохранения нового поста.
+    // Доступен по POST-запросу на 'store-post', вызывает метод 'store' PostController'а.
+    // Называется 'store-post' и требует разрешение 'add posts'.
+    Route::post('store-post', [PostController::class, 'store'])->name('store-post')->middleware('can:add posts');
+
+    // Маршрут для формы редактирования поста.
+    // Доступен по GET-запросу на 'edit-post/{id}', вызывает метод 'edit' PostController'а.
+    // Называется 'edit-post' и требует разрешение 'edit posts'.
+    Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post')->middleware('can:edit posts');
+
+    // Маршрут для обновления поста.
+    // Доступен по PUT-запросу на 'update-post/{id}', вызывает метод 'update' PostController'а.
+    // Называется 'update-post' и требует разрешение 'edit posts'.
+    Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post')->middleware('can:edit posts');
+
+    // Маршрут для восстановления удаленного поста.
+    // Доступен по POST-запросу на 'restore-post/{id}', вызывает метод 'restore' PostController'а.
+    // Называется 'restore-post' и требует разрешение 'restore posts'.
+    Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post')->middleware('can:restore posts');
+
+    // Маршрут для мягкого удаления поста.
+    // Доступен по DELETE-запросу на 'delete-post/{id}', вызывает метод 'destroy' PostController'а.
+    // Называется 'delete-post' и требует разрешение 'delete posts'.
+    Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post')->middleware('can:delete posts');
+
+    // Маршрут для принудительного удаления поста.
+    // Доступен по DELETE-запросу на 'force-delete-post/{id}', вызывает метод 'forceDelete' PostController'а.
+    // Называется 'force-delete-post' и требует разрешение 'force delete posts'.
+    Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post')->middleware('can:force delete posts');
+
+    // Закомментированный ресурсный маршрут для ролей без специфических ограничений, кроме 'auth'.
+    // Route::resource('roles', RoleController::class);
+
+    // Определяет ресурсные маршруты для RoleController (CRUD-операции для ролей).
+    // Все эти маршруты (index, create, store, show, edit, update, destroy)
+    // наследуют middleware 'auth' от родительской группы.
+    // Дополнительно, доступ к этим маршрутам имеют только пользователи с ролями 'super-user', 'manager' ИЛИ 'admin'.
+    Route::resource('roles', RoleController::class)->middleware('role:super-user|manager|admin');
+
+    // Маршруты для управления профилем пользователя (стандартные для Breeze или Jetstream).
+    // Они включают редактирование, обновление и удаление профиля.
+    // Эти маршруты также защищены middleware 'auth'.
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+});
+
+// Подключает дополнительные маршруты аутентификации (например, login, register, logout)
+// из файла 'auth.php' в директории 'routes'.
+require __DIR__.'/auth.php';
+
+=========================================================================================
