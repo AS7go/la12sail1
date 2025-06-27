@@ -1,4 +1,4 @@
-=== Урок 5_3: Spatie Permissions. Управление доступом: Blade @can и middleware ролей/разрешений.
+=== Урок 5_3 Spatie Permissions. Управление доступом: Blade @can и middleware ролей/разрешений.
 
 ============================================
 === Laravel 12 === ~/project1/la12sail1 ===

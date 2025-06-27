@@ -17,9 +17,11 @@
                     </x-nav-link>
                     
                     {{-- Добавляем --}}
+                    @role('super-user')
                     <x-nav-link :href="route('roles.index')" :active="request()->routeIs('roles.index')">
                         Roles
                     </x-nav-link>
+                    @endrole
                 </div>
             </div>
 

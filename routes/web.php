@@ -13,20 +13,16 @@ Route::get('/', function () {
 
 Route::middleware('auth')->group(function () { // <-- Здесь применяется middleware 'auth' ко всей группе
 
-    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [PostController::class, 'index'])->name('dashboard')->middleware('can:show posts');
+    Route::get('add-post', [PostController::class, 'create'])->name('add-post')->middleware('can:add posts');
+    Route::post('store-post', [PostController::class, 'store'])->name('store-post')->middleware('can:add posts');
+    Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post')->middleware('can:edit posts');
+    Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post')->middleware('can:edit posts');
+    Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post')->middleware('can:restore posts');
+    Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post')->middleware('can:delete posts');
+    Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post')->middleware('can:force delete posts');
 
-    Route::get('add-post', [PostController::class, 'create'])->name('add-post');
-    Route::post('store-post', [PostController::class, 'store'])->name('store-post');
-
-    Route::get('edit-post/{id}', [PostController::class, 'edit'])->name('edit-post');
-    Route::put('update-post/{id}', [PostController::class, 'update'])->name('update-post');
-
-
-    Route::post('restore-post/{id}', [PostController::class, 'restore'])->name('restore-post');
-    Route::delete('delete-post/{id}', [PostController::class, 'destroy'])->name('delete-post');
-    Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post');
-
-    Route::resource('roles', RoleController::class);  // Все методы в одном маршруте (resource)
+    Route::resource('roles', RoleController::class)->middleware('role:super-user');  // Все методы в одном маршруте (resource)
 
 
     // Маршруты ниже создаются автоматически в Laravel starter kits (например, Breeze или Jetstream), 

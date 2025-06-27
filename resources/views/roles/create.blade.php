@@ -22,7 +22,7 @@
 
                     @endforeach
 
-                    <button type="submit" class="btn btn-outline-success mb-2">Submit</button>
+                    <button type="submit" class="btn btn-outline-success mb-2">Add Role</button>
                 </form>
             </div>
         </div>
