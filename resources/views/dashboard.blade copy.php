@@ -9,18 +9,15 @@
         <div class="row">
             <div class="col-md-12">
                 {{-- Кнопка "Добавить пост" --}}
-                @can('add posts')
-                    <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a>
-                @endcan
+                <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a>
 
                 {{-- Кнопка "Скрыть/Показать удаленные посты" --}}
                 {{-- Логика кнопки зависит от текущего состояния запроса 'show_deleted' --}}
-                @canany(['restore posts', 'force delete posts'])
-                    <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}"
-                        class="btn btn-outline-secondary mb-3">
-                        {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }}
-                    </a>
-                @endcanany
+                <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}"
+                   class="btn btn-outline-secondary mb-3">
+                    {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }}
+                </a>
+
                 {{-- Перебираем посты, которые были переданы в представление --}}
                 @foreach ($posts as $post)
                     {{-- Отображаем пост только если он не удален ИЛИ если запрошен показ удаленных постов --}}
@@ -46,34 +43,27 @@
                                 {{-- Если пост мягко удален, показываем только кнопку "Restore" --}}
                                 @if ($post->trashed())
                                     {{-- Форма для кнопки "Restore" --}}
-                                    @can('restore posts')
-                                        <form action="{{ route('restore-post', $post->id) }}" method="POST" style="display:inline;">
-                                            @csrf
-                                            <button type="submit" class="btn btn-outline-warning">Restore</button>
-                                        </form>
-                                    @endcan
+                                    <form action="{{ route('restore-post', $post->id) }}" method="POST" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-warning">Restore</button>
+                                    </form>
+
                                     {{-- Форма для кнопки "Полное Удаление" --}}
-                                    @can('force delete posts')
-                                        <form action="{{ route('force-delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите НАВСЕГДА удалить этот пост?')">
-                                            @csrf
-                                            @method('DELETE') {{-- Обязательно используем DELETE метод --}}
-                                            <button type="submit" class="btn btn-outline-danger">Force Delete</button>
-                                        </form>
-                                    @endcan
+                                    <form action="{{ route('force-delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите НАВСЕГДА удалить этот пост?')">
+                                        @csrf
+                                        @method('DELETE') {{-- Обязательно используем DELETE метод --}}
+                                        <button type="submit" class="btn btn-outline-danger">Force Delete</button>
+                                    </form>
                                 @else
                                     {{-- Если пост НЕ удален, показываем "Edit" и "Delete" --}}
-                                    @can('edit posts')
-                                        <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
-                                    @endcan
+                                    <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
 
                                     {{-- Форма для кнопки "Delete" --}}
-                                    @can('delete posts')
-                                        <form action="{{ route('delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirmDelete()">
-                                            @csrf
-                                            @method('DELETE') {{-- Используем метод DELETE для удаления --}}
-                                            <button type="submit" class="btn btn-outline-danger">Delete</button>
-                                        </form>
-                                    @endcan
+                                    <form action="{{ route('delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirmDelete()">
+                                        @csrf
+                                        @method('DELETE') {{-- Используем метод DELETE для удаления --}}
+                                        <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                    </form>
                                 @endif
                             </div>
                         </div>
@@ -92,5 +82,4 @@
         return confirm('Вы уверены, что хотите удалить этот пост?');
     }
 </script>
-
 

@@ -1,0 +1,398 @@
+Урок 5_5 Добавление видимости кнопок по разрешениям "can", "canany". Связь пользователь-роль-разрешения.
+
+    GitHub (урок 5_5):
+https://github.com/AS7go/la12sail1/tree/lesson_05_5
+
+    GitHub Текстовое Описание урока 
+https://github.com/AS7go/la12sail1/blob/lesson_05_5/w_Lessons_Doc/Lesson5_5.txt
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Пользователь
+http://localhost/
+test1@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+
+
+
+--- Использование директивы @can для проверки разрешений (Spatie Laravel Permission)
+
+Laravel предоставляет Blade-директиву @can для проверки разрешений, а пакет spatie/laravel-permission интегрирует и расширяет 
+эту функциональность. Она позволяет проверять наличие у пользователя определённого разрешения, независимо от того, было ли оно
+назначено напрямую или унаследовано через одну из присвоенных ролей.
+
+Подробную информацию можно найти в официальной документации:
+https://spatie.be/docs/laravel-permission/v6/basic-usage/blade-directives
+
+    @can('add posts')
+        // код для выполнения
+    @endcan
+
+или (если есть дополнительные условия " && $some_other_condition" )
+
+    @if(auth()->user()->can('add posts') && $some_other_condition)
+        // код для выполнения
+    @endif
+
+--- Добавим проверку разрешения 'add posts' в resources/views/dashboard.blade.php
+Вариант 1 
+                {{-- Кнопка "Добавить пост" --}}
+                @can('add posts')
+                    <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a>
+                @endcan
+                
+Вариант 2
+                {{-- Кнопка "Добавить пост" --}}
+                @if(auth()->user()->can('add posts'))
+                    <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a>
+                @endif
+
+                
+=== Краткое описание каждой директивы:
+
+@can – Проверяет наличие конкретного разрешения у текущего пользователя.
+
+@cannot – Проверяет отсутствие конкретного разрешения у текущего пользователя.
+
+@canany – Проверяет наличие хотя бы одного из списка разрешений у текущего пользователя.
+
+@guest – Проверяет, является ли текущий пользователь неаутентифицированным (гостем).
+
+Вариант 1
+                {{-- Кнопка "Скрыть/Показать удаленные посты" --}}
+                {{-- Логика кнопки зависит от текущего состояния запроса 'show_deleted' --}}
+                @canany(['restore posts', 'force delete posts'])
+                    <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}"
+                        class="btn btn-outline-secondary mb-3">
+                        {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }}
+                    </a>
+                @endcanany
+
+Вариант 2
+                @if(auth()->user()->can('restore posts') || auth()->user()->can('force delete posts'))
+                    <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}"
+                       class="btn btn-outline-secondary mb-3">
+                        {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }}
+                    </a>
+                @endif
+                
+=== копируем resources/views/dashboard.blade.php перед изменениями
+                
+=== Добавляем @can('разрешения') ... @endcan в файл resources/views/dashboard.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+                {{-- Кнопка "Добавить пост" --}}
+                @can('add posts')
+                    <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a>
+                @endcan
+
+                {{-- Кнопка "Скрыть/Показать удаленные посты" --}}
+                {{-- Логика кнопки зависит от текущего состояния запроса 'show_deleted' --}}
+                @canany(['restore posts', 'force delete posts'])
+                    <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}"
+                        class="btn btn-outline-secondary mb-3">
+                        {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }}
+                    </a>
+                @endcanany
+                {{-- Перебираем посты, которые были переданы в представление --}}
+                @foreach ($posts as $post)
+                    {{-- Отображаем пост только если он не удален ИЛИ если запрошен показ удаленных постов --}}
+                    {{-- Добавляем класс 'border-danger' для удаленных постов и 'mb-3' для отступа --}}
+                    @if(!$post->trashed() || request('show_deleted'))
+                        <div class="card mb-3 {{ $post->trashed() ? 'border-danger' : '' }}">
+                            <h5 class="card-header">
+                                {{ $post->name }}
+                                {{-- Добавляем значок "Удалено" для мягко удаленных постов --}}
+                                @if($post->trashed())
+                                    <span class="badge bg-danger">Deleted</span>
+                                @endif
+                            </h5>
+                            <div class="card-body">
+                                {{-- <p>{{ $post->created_at }}</p>
+                                <p>{{ $post->text }}</p> --}}
+
+                                <p>Created {{ $post->created_at }}</p>
+                                <p>Updated {{ $post->updated_at }}</p> 
+                                <p>{{ $post->text }}</p>
+ 
+                                {{-- Кнопки действий: Edit, Delete, Restore --}}
+                                {{-- Если пост мягко удален, показываем только кнопку "Restore" --}}
+                                @if ($post->trashed())
+                                    {{-- Форма для кнопки "Restore" --}}
+                                    @can('restore posts')
+                                        <form action="{{ route('restore-post', $post->id) }}" method="POST" style="display:inline;">
+                                            @csrf
+                                            <button type="submit" class="btn btn-outline-warning">Restore</button>
+                                        </form>
+                                    @endcan
+                                    {{-- Форма для кнопки "Полное Удаление" --}}
+                                    @can('force delete posts')
+                                        <form action="{{ route('force-delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите НАВСЕГДА удалить этот пост?')">
+                                            @csrf
+                                            @method('DELETE') {{-- Обязательно используем DELETE метод --}}
+                                            <button type="submit" class="btn btn-outline-danger">Force Delete</button>
+                                        </form>
+                                    @endcan
+                                @else
+                                    {{-- Если пост НЕ удален, показываем "Edit" и "Delete" --}}
+                                    @can('edit posts')
+                                        <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a>
+                                    @endcan
+
+                                    {{-- Форма для кнопки "Delete" --}}
+                                    @can('delete posts')
+                                        <form action="{{ route('delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirmDelete()">
+                                            @csrf
+                                            @method('DELETE') {{-- Используем метод DELETE для удаления --}}
+                                            <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                        </form>
+                                    @endcan
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+
+            </div>
+        </div>
+    </div>
+
+</x-app-layout>
+
+<script>
+    // JavaScript функция для подтверждения удаления
+    function confirmDelete() {
+        return confirm('Вы уверены, что хотите удалить этот пост?');
+    }
+</script>
+
+
+
+=== Создадим нового пользователя, которому автоматически присвоится роль "user"
+
+Mike
+mike@gmail.com
+12345678
+
+=== Автоприсвоение роли "user" уже сделали в файле app/Http/Controllers/Auth/RegisteredUserController.php
+
+=== Уже сделали hasRole('super-user') в файле app/Providers/AppServiceProvider.php
+
+=========
+
+Повторение с прошлого урока ->
+ на примере таблиц "users", "role_has_permissions", "model_has_roles", "roles", "permissions" показана связь: 
+- Один ко многим ("One-to-Many")
+- Многие ко многим ("Many-to-Many")
+
+- Описание таблиц в базе данных:
+
+- cache:                 Хранит кэшированные данные приложения для ускорения доступа.
+- cache_locks:           Используется для предотвращения состояния гонки при работе с кэшем.
+- failed_jobs:           Содержит информацию о неудавшихся заданиях очереди.
+- jobs:                  Очередь заданий для асинхронной обработки задач.
+- job_batches:           Отслеживает выполнение пакетов заданий очереди.
+- migrations:            История примененных миграций базы данных.
+- posts:                 Содержит записи постов с полями id, name и text.
+-   permissions:           Список разрешений, используемых в системе.
+-   roles:                 Список ролей пользователей в системе.
+-   model_has_roles:       Связывает модели (например, пользователей) с ролями.
+- model_has_permissions: Связывает модели (например, пользователей) с отдельными разрешениями.
+-   role_has_permissions:  Связывает роли с набором разрешений.
+- sessions:              Информация об активных сессиях пользователей.
+- password_reset_tokens: Токены для восстановления паролей пользователей.
+-   users:                 Учетные записи пользователей (ID, имя, email, хешированный пароль).
+
+
+Взаимосвязи таблиц для управления ролями и разрешениями (Spatie Laravel Permission)
+
+1.  "users" к "roles" (через "model_has_roles")
+    - Связь: Многие ко многим ("Many-to-Many")
+    - Как работает: Один пользователь может иметь несколько ролей, и одна роль может быть назначена множеству пользователей.
+    - Промежуточная таблица: "model_has_roles". Содержит внешний ключ "model_id" (ссылается на "id" в "users") и 
+    "role_id" (ссылается на "id" в "roles"). "model_type" указывает на тип модели ("App\Models\User").
+
+2.  "roles" к "permissions" (через "role_has_permissions")
+    - Связь: Многие ко многим ("Many-to-Many")
+    - Как работает: Одна роль может иметь несколько разрешений, и одно разрешение может быть присвоено множеству ролей.
+    - Промежуточная таблица: "role_has_permissions". Содержит внешний ключ "role_id" (ссылается на "id" в "roles") и 
+    "permission_id" (ссылается на "id" в "permissions"). Это ядро системы, определяющее, какие разрешения связаны с каждой ролью.
+
+3.  "users" к "permissions" (напрямую через "model_has_permissions")
+    - Связь: Многие ко многим ("Many-to-Many")
+    - Как работает: Пользователю можно напрямую присваивать индивидуальные разрешения, минуя роли.
+    - Промежуточная таблица: "model_has_permissions". Содержит внешний ключ "model_id" (ссылается на "id" в "users") и 
+    "permission_id" (ссылается на "id" в "permissions").
+
+4.  "users" к "model_has_roles"
+    - Связь: Один ко многим ("One-to-Many")
+    - Как работает: Каждый пользователь ("users.id") может иметь много записей в таблице "model_has_roles", каждая из которых 
+    назначает ему определённую роль.
+
+5.  "roles" к "model_has_roles"
+    - Связь: Один ко многим ("One-to-Many")
+    - Как работает: Каждая роль ("roles.id") может быть связана с множеством записей в таблице "model_has_roles", каждая из 
+    которых назначает эту роль конкретному пользователю.
+
+6.  "permissions" к "role_has_permissions"
+    - Связь: Один ко многим ("One-to-Many")
+    - Как работает: Каждое разрешение ("permissions.id") может быть связано с множеством записей в таблице "role_has_permissions", 
+    каждая из которых присваивает это разрешение определённой роли.
+
+7.  "roles" к "role_has_permissions"
+    - Связь: Один ко многим ("One-to-Many")
+    - Как работает: Каждая роль ("roles.id") может быть связана с множеством записей в таблице "role_has_permissions", каждая из 
+    которых назначает этой роли определённое разрешение.
+
+Итого: Таблицы "model_has_roles" и "role_has_permissions" являются ключевыми промежуточными таблицами, которые обеспечивают 
+гибкие связи "многие ко многим", позволяя пользователям иметь несколько ролей, а ролям - несколько разрешений. Разрешения 
+также могут быть напрямую привязаны к пользователям.
+
+
+
+=== Полное описание resources/views/dashboard.blade.php
+
+<x-app-layout> {{-- Открывающий тег компонента Blade-разметки 'app-layout'. Это общая оболочка для страницы. --}}
+    <x-slot name="header"> {{-- Определяет слот с именем 'header' для компонента 'app-layout'. Обычно используется для заголовков страницы. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- HTML-заголовок h2 с Tailwind CSS классами для стилизации текста. --}}
+            {{ __('Dashboard') }} {{-- Выводит переведенную строку 'Dashboard'. Функция `__` используется для интернационализации. --}}
+        </h2> {{-- Закрывающий тег h2. --}}
+    </x-slot> {{-- Закрывающий тег слота 'header'. --}}
+
+    <div class="container mt-6"> {{-- Открывающий тег div с классами Bootstrap для контейнера и верхнего отступа (margin-top). --}}
+        <div class="row"> {{-- Открывающий тег div с классом Bootstrap для строки (ряд сетки). --}}
+            <div class="col-md-12"> {{-- Открывающий тег div с классом Bootstrap для колонки, занимающей всю ширину на средних и больших экранах. --}}
+                {{-- Кнопка "Добавить пост". --}}
+                @can('add posts') {{-- Директива Blade @can проверяет, имеет ли текущий аутентифицированный пользователь разрешение 'add posts'. --}}
+                                  {{-- Если разрешение есть, содержимое блока будет отображено. --}}
+                    <a href="{{ route('add-post') }}" class="btn btn-outline-success mb-3">Add post</a> {{-- HTML-ссылка, стилизованная как кнопка. --}}
+                                                            {{-- `href="{{ route('add-post') }}"` генерирует URL для маршрута 'add-post'. --}}
+                                                            {{-- `class="..."` применяет стили Bootstrap для кнопки и нижнего отступа. --}}
+                @endcan {{-- Завершение блока @can. --}}
+
+                {{-- Кнопка "Скрыть/Показать удаленные посты". --}}
+                {{-- Логика кнопки зависит от текущего состояния запроса 'show_deleted'. --}}
+                @canany(['restore posts', 'force delete posts']) 
+                        {{-- Директива Blade @canany проверяет, имеет ли пользователь хотя бы одно из перечисленных разрешений. --}}
+                                                                 {{-- В данном случае: 'restore posts' ИЛИ 'force delete posts'. --}}
+                    <a href="{{ route('dashboard', ['show_deleted' => request('show_deleted') ? 0 : 1]) }}" {{-- HTML-ссылка. --}}
+                                                      {{-- `href` динамически изменяет параметр 'show_deleted' в URL, переключая его между 0 и 1. --}}
+                       class="btn btn-outline-secondary mb-3"> {{-- Стилизация кнопки Bootstrap. --}}
+                        {{ request('show_deleted') ? 'Hide deleted posts' : 'Show deleted posts' }} {
+                            {-- Динамический текст кнопки: меняется в зависимости от значения 'show_deleted' в запросе. --}}
+                    </a> {{-- Закрывающий тег <a>. --}}
+                @endcanany {{-- Завершение блока @canany. --}}
+
+                {{-- Перебираем посты, которые были переданы в представление. --}}
+                @foreach ($posts as $post) {{-- Начало цикла Blade, итерирующего по коллекции $posts. Каждая итерация предоставляет объект $post. --}}
+                    {{-- Отображаем пост только если он не удален ИЛИ если запрошен показ удаленных постов. --}}
+                    {{-- Добавляем класс 'border-danger' для удаленных постов и 'mb-3' для отступа. --}}
+                    @if(!$post->trashed() || request('show_deleted')) {{-- Условная директива Blade: отображает карточку поста, если пост не --}}
+                                                           {{-- удален ИЛИ если в запросе есть параметр 'show_deleted' (показать удаленные). --}}
+                        <div class="card mb-3 {{ $post->trashed() ? 'border-danger' : '' }}"> {{-- HTML-блок карточки Bootstrap. --}}
+                                {{-- `mb-3` добавляет нижний отступ. --}}
+                                {{-- `{{ $post->trashed() ? 'border-danger' : '' }}` добавляет красную рамку, если пост "мягко" удален. --}}
+                            <h5 class="card-header"> {{-- Заголовок карточки. --}}
+                                {{ $post->name }} {{-- Выводит название поста. --}}
+                                {{-- Добавляем значок "Удалено" для мягко удаленных постов. --}}
+                                @if($post->trashed()) {{-- Условная директива: если пост "мягко" удален. --}}
+                                    <span class="badge bg-danger">Deleted</span> {{-- Отображает красный значок "Deleted". --}}
+                                @endif {{-- Завершение блока @if. --}}
+                            </h5> {{-- Закрывающий тег h5. --}}
+                            <div class="card-body"> {{-- Тело карточки. --}}
+                                {{-- <p>{{ $post->created_at }}</p> --}} {{-- Закомментированная строка: вывод даты создания. --}}
+                                {{-- <p>{{ $post->text }}</p> --}} {{-- Закомментированная строка: вывод текста поста. --}}
+
+                                <p>Created {{ $post->created_at }}</p> {{-- Выводит дату создания поста. --}}
+                                <p>Updated {{ $post->updated_at }}</p> {{-- Выводит дату последнего обновления поста. --}}
+                                <p>{{ $post->text }}</p> {{-- Выводит текст поста. --}}
+
+                                {{-- Кнопки действий: Edit, Delete, Restore, Force Delete. --}}
+                                @if ($post->trashed()) {{-- Условная директива: если пост "мягко" удален. --}}
+                                    {{-- Если пост мягко удален, показываем только кнопки "Restore" и "Force Delete". --}}
+
+                                    {{-- Форма для кнопки "Restore". --}}
+                                    @can('restore posts') {{-- Проверяет разрешение 'restore posts'. --}}
+                                        <form action="{{ route('restore-post', $post->id) }}" method="POST" style="display:inline;"> 
+                                                {{-- HTML-форма для восстановления поста. --}}
+                                                {{-- `action` указывает маршрут и ID поста для восстановления. --}}
+                                                {{-- `method="POST"` устанавливает метод HTTP. --}}
+                                             {{-- `style="display:inline;"` позволяет кнопке отображаться в одной строке с другими элементами. --}}
+                                            @csrf {{-- Директива Blade для защиты от CSRF-атак. Генерирует скрытое поле с токеном. --}}
+                                            <button type="submit" class="btn btn-outline-warning">Restore</button> 
+                                                {{-- Кнопка отправки формы, стилизованная как желтая кнопка Bootstrap. --}}
+                                        </form> {{-- Закрывающий тег формы. --}}
+                                    @endcan {{-- Завершение блока @can. --}}
+
+                                    {{-- Форма для кнопки "Полное Удаление". --}}
+                                    @can('force delete posts') {{-- Проверяет разрешение 'force delete posts'. --}}
+                                        <form action="{{ route('force-delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Вы уверены, что хотите НАВСЕГДА удалить этот пост?')"> 
+                                        {{-- HTML-форма для принудительного удаления поста. --}}
+                                        {{-- `onsubmit` вызывает JavaScript-функцию `confirm()` для подтверждения. --}}
+                                            @csrf {{-- Директива CSRF-защиты. --}}
+                                            @method('DELETE') {{-- Директива Blade, которая генерирует скрытое поле `_method` --}}
+                                            {{-- со значением 'DELETE', чтобы Laravel мог интерпретировать запрос как DELETE, а не POST. --}}
+                                            <button type="submit" class="btn btn-outline-danger">Force Delete</button> 
+                                            {{-- Кнопка отправки формы, стилизованная как красная кнопка Bootstrap. --}}
+                                        </form> {{-- Закрывающий тег формы. --}}
+                                    @endcan {{-- Завершение блока @can. --}}
+                                @else {{-- Если пост НЕ удален. --}}
+                                    {{-- Если пост НЕ удален, показываем "Edit" и "Delete". --}}
+
+                                    {{-- Кнопка "Edit". --}}
+                                    @can('edit posts') {{-- Проверяет разрешение 'edit posts'. --}}
+                                        <a href="{{ route('edit-post', $post->id) }}" class="btn btn-outline-primary">Edit</a> 
+                                        {{-- HTML-ссылка для редактирования поста, стилизованная как синяя кнопка. --}}
+                                    @endcan {{-- Завершение блока @can. --}}
+
+                                    {{-- Форма для кнопки "Delete". --}}
+                                    @can('delete posts') {{-- Проверяет разрешение 'delete posts'. --}}
+                                        <form action="{{ route('delete-post', $post->id) }}" method="POST" style="display:inline;" onsubmit="return confirmDelete()"> 
+                                                {{-- HTML-форма для "мягкого" удаления поста. --}}
+                                                {{-- `onsubmit` вызывает пользовательскую JS-функцию `confirmDelete()`. --}}
+                                            @csrf {{-- Директива CSRF-защиты. --}}
+                                            @method('DELETE') {{-- Генерирует скрытое поле `_method` со значением 'DELETE'. --}}
+                                            <button type="submit" class="btn btn-outline-danger">Delete</button> 
+                                            {{-- Кнопка отправки формы, стилизованная как красная кнопка Bootstrap. --}}
+                                        </form> {{-- Закрывающий тег формы. --}}
+                                    @endcan {{-- Завершение блока @can. --}}
+                                @endif {{-- Завершение блока @if ($post->trashed()). --}}
+                            </div> {{-- Закрывающий тег div.card-body. --}}
+                        </div> {{-- Закрывающий тег div.card. --}}
+                    @endif {{-- Завершение блока @if(!$post->trashed() || request('show_deleted')). --}}
+                @endforeach {{-- Завершение цикла @foreach. --}}
+
+            </div> {{-- Закрывающий тег div.col-md-12. --}}
+        </div> {{-- Закрывающий тег div.row. --}}
+    </div> {{-- Закрывающий тег div.container. --}}
+
+</x-app-layout> {{-- Закрывающий тег компонента 'app-layout'. --}}
+
+<script>
+    // JavaScript функция для подтверждения удаления.
+    function confirmDelete() { // Объявление JavaScript-функции `confirmDelete`.
+        return confirm('Вы уверены, что хотите удалить этот пост?'); // Выводит стандартное окно подтверждения браузера. 
+                                                    // Возвращает true, если пользователь нажал OK, и false, если Cancel.
+    }
+</script> {{-- Закрывающий тег блока JavaScript. --}}
+
+
+======================================================================================================================
