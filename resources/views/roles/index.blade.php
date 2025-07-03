@@ -34,8 +34,3 @@
 
 </x-app-layout>
 
-<script>
-    function confirmDelete() {
-        return confirm('Вы уверены, что хотите удалить эту роль?');
-    }
-</script>

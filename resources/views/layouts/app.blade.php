@@ -76,7 +76,12 @@
 
             </main>
 
-
         </div>
+        {{-- Глобальная JavaScript функция для подтверждения удаления --}}
+        <script>
+            function confirmDelete() {
+                return confirm('Are you sure you want to delete?');
+            }
+        </script>
     </body>
 </html>

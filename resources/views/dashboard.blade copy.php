@@ -76,10 +76,4 @@
 
 </x-app-layout>
 
-<script>
-    // JavaScript функция для подтверждения удаления
-    function confirmDelete() {
-        return confirm('Вы уверены, что хотите удалить этот пост?');
-    }
-</script>
 

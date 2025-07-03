@@ -1,0 +1,465 @@
+Урок 6 Создание ресурсного контроллера (UserController). Определение методов и маршрутов (Route).
+
+    GitHub (урок 6):
+https://github.com/AS7go/la12sail1/tree/lesson_06
+
+    GitHub Текстовое Описание урока 
+https://github.com/AS7go/la12sail1/blob/lesson_06/w_Lessons_Doc/Lesson6.txt
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Пользователи (примеры учетных записей)
+http://localhost/
+test1@gmail.com
+12345678
+
+Mike
+mike@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+--- Создаем контроллер app/Http/Controllers/UserController.php командой
+
+sail artisan make:controller UserController --resource --model=User
+
+--- Добавляем код в app/Http/Controllers/UserController.php
+
+
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
+
+class UserController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        $users = User::orderBy('created_at', 'desc')->get(); //все пользователи
+
+        // $users = User::whereDoesntHave('roles', function ($query) { //кроме роли super-user
+        // // $users = User::whereHas('roles', function ($query) { // только с ролью super-user (admin, Admin1)
+        //     $query->where('name', 'super-user');
+        // })->orderBy('created_at', 'desc')->get();
+
+        return view('users.index', compact([
+            'users'
+        ]));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $roles = Role::orderBy('name')->get();
+
+        return view('users.create', compact([
+            'roles',
+        ]));
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|max:255',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|min:8|confirmed',
+            'role_id' => 'required|integer|exists:roles,id',
+        ]);
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        $role = Role::find($request->role_id);
+        $user->assignRole($role->name);
+
+        return redirect()->route('users.index')->with('success', "User ({$user->name}) created.");
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(User $user)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(User $user)
+    {
+         $roles = Role::orderBy('name')->get();
+
+        return view('users.edit', compact([
+            'user',
+            'roles',
+        ]));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, User $user)
+    {
+        $request->validate([
+            'name'=>'required|max:255',
+            'role_id'=>'required|integer|exists:roles,id',
+        ]);
+
+        $user->update([
+            'name'=>$request->name,
+        ]);
+        $role = Role::find($request->role_id);
+
+        $user->syncRoles([$role->name]);
+
+        return redirect()->back()->with('success', "User ({$user->name}) updated.");
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(User $user)
+    {
+        $user->delete();
+
+        return redirect()->route('users.index')->with('success', "User ({$user->name}) deleted.");
+    }
+}
+
+
+=== Описание маршрутов routes/web.php
+
++----------------------------------------------------------------------------------------------------------------------------+
+| Автоматические Маршруты "под капотом" Route::resource('users', UserController::class)->middleware('role:super-user');      |    
++---------------------+--------+---------+-------------------+------------------------------------+--------------------------+
+| URI                 | HTTP   | Метод   | Название маршрута | Назначение                         | Middleware/Can           |
++---------------------+--------+---------+-------------------+------------------------------------+--------------------------+
+| /users              | GET    | index   | users.index       | Список всех пользователей          | auth|role:super-user     |
+| /users/create       | GET    | create  | users.create      | Форма создания пользователя        | auth|role:super-user     |
+| /users              | POST   | store   | users.store       | Сохранение нового пользователя     | auth|role:super-user     |
+| /users/{user}       | GET    | show    | users.show        | Отображение одного пользователя по ID | auth|role:super-user  |
+| /users/{user}/edit  | GET    | edit    | users.edit        | Форма редактирования пользователя по ID | auth|role:super-user|
+| /users/{user}       | PUT    | update  | users.update      | Обновление пользователя по ID      | auth|role:super-user     |
+| /users/{user}       | DELETE | destroy | users.destroy     | Удаление пользователя по ID        | auth|role:super-user     |
++---------------------+--------+---------+-------------------+------------------------------------+--------------------------+
+
+--- Добавляем маршрут в файл routes/web.php
+
+use App\Http\Controllers\UserController;
+    ...
+
+    Route::resource('users', UserController::class)->middleware('role:super-user');
+    
+=== Посмотреть маршруты 'users' командой 
+sail artisan route:list --name=users 
+
+=== Посмотреть маршруты 'roles' командой 
+sail artisan route:list --name=roles 
+
+--- Посмотреть маршруты 'UserController' командой 
+sail artisan route:list | grep UserController
+
+--- Посмотреть маршруты 'RoleController' командой 
+sail artisan route:list | grep RoleController
+
+--- Посмотреть маршруты 'PostController' командой 
+sail artisan route:list | grep PostController
+
+--- Маршруты контроллеров UserController, RoleController и PostController
+sail artisan route:list | grep -E 'UserController|RoleController|PostController'
+
+--- все маршруты
+sail artisan route:list
+
+
+--- resources/views/layouts/navigation.blade.php
+
+@role('super-user')
+    <x-nav-link :href="route('roles.index')" :active="request()->routeIs('roles.index')">
+        Roles
+    </x-nav-link>
+    <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.index')">
+        Users
+    </x-nav-link>
+@endrole
+
+--- Создаем директорию resources/views/users
+
+--- Добавляем файл resources/views/users/index.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+
+                <a href="{{ route('users.create') }}" class="btn btn-outline-success mb-2">Add new user</a>
+
+                @foreach ($users as $user)
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            User Name: <strong>{{ $user->name }}</strong>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text mb-2">
+                                Roles:
+                                @if ($user->roles->isNotEmpty())
+                                    @foreach ($user->roles as $role)
+                                        <span class="badge bg-primary me-1">{{ $role->name }}</span>
+                                    @endforeach
+                                @else
+                                    <span class="text-muted">No roles assigned</span>
+                                @endif
+                            </p>
+                            <p class="card-text">
+                                Permissions:
+                                {{-- Выводим все разрешения пользователя (прямые и через роли) --}}
+                                @php
+                                    // Получаем все разрешения пользователя (прямые и через роли)
+                                    $allPermissions = $user->getAllPermissions();
+                                @endphp
+                                @if ($allPermissions->isNotEmpty())
+                                    @foreach ($allPermissions as $permission)
+                                        <span class="badge bg-info text-dark me-1">{{ $permission->name }}</span>
+                                    @endforeach
+                                @else
+                                    <span class="text-muted">No permissions assigned</span>
+                                @endif
+
+                            </p>
+                            <div class="mt-3">
+                                <a href="{{ route('users.edit', $user->id) }}" class="btn btn-outline-primary btn-sm">Edit</a>
+                                <form action="{{ route('users.destroy', $user->id) }}" method="POST" 
+                                    style="display: inline;" onsubmit="return confirmDelete()">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function confirmDelete() {
+            return confirm('Вы уверены, что хотите удалить этого пользователя?');
+        }
+    </script>    
+</x-app-layout>
+
+
+--- Добавлен стиль "btn-sm" кнопок "Edit" и "Delete" в resources/views/users/index.blade.php
+
+--- Добавляем файл resources/views/users/create.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Create User') }}
+        </h2>
+    </x-slot>
+
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        Create New User
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ route('users.store') }}" method="POST">
+                            @csrf
+
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Name</label>
+                                <input type="text" name="name" id="name" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" name="email" id="email" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" name="password" id="password" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="password_confirmation" class="form-label">Confirm Password</label>
+                                <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="role_id" class="form-label">Role</label>
+                                <select name="role_id" id="role_id" class="form-select" required>
+                                    <option value="">Select Role</option>
+                                    @foreach ($roles as $role)
+                                        <option value="{{ $role->id }}">{{ $role->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Create User</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+
+--- Добавляем файл resources/views/users/edit.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+    <div class="container mt-6">
+        <div class="row">
+            <div class="col-md-12">
+                
+                <form method="post" action="{{route('users.update', $user->id)}}">
+                    @csrf
+                    @method('PUT')
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Name</label>
+                        <input type="text" name="name" value="{{$user->name}}" class="form-control mb-3" id="exampleInputEmail1">
+                    </div>
+                    <div class="form-group">
+                        <label for="exampleInputEmail1">Email</label>
+                        <input type="text" name="email" value="{{$user->email}}" class="form-control mb-3" id="exampleInputEmail1" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exampleFormControlSelect2">Role</label>
+                        <select name="role_id" class="form-control mb-2" id="exampleFormControlSelect2">
+                            @foreach($roles as $role)
+                                <option value="{{$role['id']}}" 
+                                	@if($user->hasRole($role['name'])) 
+                                		selected 
+                                	@endif>{{$role['name']}}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                     
+                    <button type="submit" class="btn btn-outline-success mb-2">Update User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+
+--- Описание "$user->hasRole ..."
+https://spatie.be/docs/laravel-permission/v6/basic-usage/role-permissions
+
+--- Описание "option selected"
+https://getbootstrap.com/docs/4.6/components/forms/
+
+
+--- Если оставлять <script>...</script> в отдельных файлах, то скрипт должен быть внутри тэгов <x-app-layout>...</x-app-layout>,
+потому что все, что находится между <x-app-layout> и </x-app-layout>, в конечном итоге вставляется в тег <main> {{ $slot }} 
+вашего основного макета layouts/app.blade.php. Таким образом, скрипт будет включен в 
+финальный HTML-документ и будет работать.
+
+<x-app-layout>
+
+    ... 
+    <script>
+        // JavaScript функция для подтверждения удаления
+        function confirmDelete() {
+            return confirm('Вы уверены, что хотите удалить этот пост?');
+        }
+    </script>
+</x-app-layout>
+
+--- Перенесем скрипт в файл resources/views/layouts/app.blade.php
+
+    ...
+            <!-- Page Content -->
+            <main>
+                ...
+                        {{ $slot }} // <-- Вот здесь будет вставлено содержимое из дочернего представления
+                    </div>
+                </div>
+                
+            </main>
+
+        </div>
+
+        {{-- Глобальная JavaScript функция для подтверждения удаления --}}
+        <script>
+            function confirmDelete() {
+                return confirm('Are you sure you want to delete?');
+            }
+        </script>
+
+    </body>
+</html>
+
+и удалим из файлов 
+
+resources/views/dashboard.blade.php
+resources/views/roles/index.blade.php
+resources/views/users/index.blade.php
+
+=== Описание части кода "form-group", "select", "option" из файла resources/views/users/edit.blade.php
+
+Этот код создает выпадающий список для выбора роли пользователя.
+
+Он перебирает все доступные роли ($roles) и для каждой создает опцию. Если у редактируемого пользователя ($user)
+уже есть текущая роль, эта опция автоматически помечается как selected (выбранная по умолчанию).
+
+<div class="form-group"> {{-- Группирует элементы формы для стилизации (Bootstrap). --}}
+    <label for="exampleFormControlSelect2">Role</label> {{-- Метка для выпадающего списка, повышает удобство использования. --}}
+    <select name="role_id" class="form-control mb-2" id="exampleFormControlSelect2"> {{-- Создает выпадающий список. --}}
+                                                                                     {{-- `name="role_id"`: имя поля для отправки на сервер. --}}
+                                                                                     {{-- `class="..."`: стили Bootstrap. --}}
+                                                                                     {{-- `id="..."`: уникальный идентификатор. --}}
+        @foreach($roles as $role) {{-- Начинает цикл по коллекции ролей ($roles). --}}
+            <option value="{{$role['id']}}" {{-- Создает опцию списка. `value` - ID роли для отправки. --}}
+                @if($user->hasRole($role['name'])) {{-- Проверяет, имеет ли пользователь ($user) текущую роль. --}}
+                    selected {{-- Если да, добавляет атрибут `selected`, делая опцию выбранной по умолчанию. --}}
+                @endif>{{$role['name']}} {{-- Закрывает условный блок и выводит имя роли как текст опции. --}}
+            </option> {{-- Закрывает тег опции. --}}
+        @endforeach {{-- Завершает цикл по ролям. --}}
+    </select> {{-- Закрывает тег выпадающего списка. --}}
+</div> {{-- Закрывает группу формы. --}}
+
+======================================================================================================================

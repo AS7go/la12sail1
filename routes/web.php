@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\UserController;
 
 
 Route::get('/', function () {
@@ -23,7 +24,7 @@ Route::middleware('auth')->group(function () { // <-- Здесь применя�
     Route::delete('force-delete-post/{id}', [PostController::class, 'forceDelete'])->name('force-delete-post')->middleware('can:force delete posts');
 
     Route::resource('roles', RoleController::class)->middleware('role:super-user');  // Все методы в одном маршруте (resource)
-
+    Route::resource('users', UserController::class)->middleware('role:super-user');
 
     // Маршруты ниже создаются автоматически в Laravel starter kits (например, Breeze или Jetstream), 
     // предоставляя базовое управление профилем пользователя и аутентификацию.
