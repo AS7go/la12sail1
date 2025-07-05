@@ -1,122 +1,127 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers; // Пространство имен контроллеров.
 
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
-use Illuminate\Validation\Rule; // <-- Добавлен импорт Rule для использования уникального правила
+use Spatie\Permission\Models\Role; // Импорт модели Role из пакета Spatie.
+use Spatie\Permission\Models\Permission; // Импорт модели Permission.
+use Illuminate\Validation\Rule; // Импорт класса Rule для валидации.
+use Illuminate\Http\Request; // Импорт класса Request.
 
-use Illuminate\Http\Request;
-
-
-class RoleController extends Controller
+class RoleController extends Controller // Объявление класса RoleController.
 {
     /**
-     * Display a listing of the resource.
+     * Отображает список всех ролей, исключая 'super-user'.
      */
-    public function index()
+    public function index() // Метод для отображения списка ролей.
     {
-        // $roles=Role::orderBy('name')->where('name', '!=', 'super-user')->get(); // исключаем вывод super-user
-        $roles=Role::orderBy('name')->get();
+        // Получает все роли, кроме 'super-user', для отображения.
+        $roles = Role::orderBy('name')->where('name', '!=', 'super-user')->get();
 
-        return view('roles.index', compact('roles'));
+        return view('roles.index', compact('roles')); // Возвращает представление 'roles.index'.
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Отображает форму для создания новой роли.
      */
-    public function create()
+    public function create() // Метод для отображения формы создания роли.
     {
-        $permissions = Permission::orderBy('name')->get();
+        $permissions = Permission::orderBy('name')->get(); // Получает все разрешения.
 
-        return view('roles.create', compact([
+        return view('roles.create', compact([ // Возвращает представление 'roles.create'.
             'permissions'
         ]));
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Сохраняет новую роль, предотвращая создание роли 'super-user'.
      */
-    public function store(Request $request)
+    public function store(Request $request) // Метод для сохранения новой роли.
     {
-        $request->validate([
-            // 'name'=>'required|string|max:255', // Оригинальная строка
-            // Рекомендуемое изменение: Добавлено правило 'unique:roles,name'
+        $request->validate([ // Валидация входящих данных.
             'name' => ['required', 'string', 'max:255', 'unique:roles,name'],
             'permissions'=>'required',
             'permissions.*'=>'required|integer|exists:permissions,id',
         ]);
 
-        $newRole = Role::create([
+        // Проверка: предотвращает создание роли с именем 'super-user'.
+        if ($request->name === 'super-user') {
+            return redirect()->back()->withInput()->with('error', 'The "super-user" role cannot be created.'); // Перенаправляет с ошибкой.
+        }
+
+        $newRole = Role::create([ // Создает новую роль.
             'name'=>$request->name,
         ]);
-        $permissions = Permission::whereIn('id', $request->permissions)->get();
+        $permissions = Permission::whereIn('id', $request->permissions)->get(); // Получает выбранные разрешения.
 
-        $newRole->syncPermissions($permissions);
+        $newRole->syncPermissions($permissions); // Синхронизирует разрешения с ролью.
 
-        // Перенаправляем на страницу roles.index
-        return redirect()->route('roles.index')->with('success', "Role ({$newRole->name}) added!");
+        return redirect()->route('roles.index')->with('success', "Role ({$newRole->name}) added!"); // Перенаправляет с сообщением.
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Role $role)
+    public function show(Role $role) // Метод для отображения одной роли (не реализован).
     {
         //
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Отображает форму для редактирования существующей роли, предотвращая доступ к 'super-user'.
      */
-    public function edit(Role $role)
+    public function edit(Role $role) // Метод для отображения формы редактирования роли.
     {
-        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id); //защита от подмены id super-user
+        // Защита: предотвращает редактирование роли 'super-user' (выбросит 404).
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id);
 
-        $permissions = Permission::orderBy('name')->get();
+        $permissions = Permission::orderBy('name')->get(); // Получает все разрешения.
 
-        return view('roles.edit', compact([
+        return view('roles.edit', compact([ // Возвращает представление 'roles.edit'.
             'permissions',
             'role',
         ]));
     }
 
     /**
-     * Update the specified resource in storage.
+     * Обновляет существующую роль, предотвращая изменение на 'super-user' и обновление самой 'super-user'.
      */
-    public function update(Request $request, Role $role)
+    public function update(Request $request, Role $role) // Метод для обновления роли.
     {
-        $request->validate([
-            // 'name'=>'required|string|max:255',
-            // Правило Rule::unique('roles', 'name')->ignore($role->id) гарантирует, что имя уникально,
-            // но позволяет текущей редактируемой роли сохранить свое имя.
+        // Защита: предотвращает обновление роли 'super-user' (выбросит 404).
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id);
+
+        $request->validate([ // Валидация входящих данных.
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($role->id)],
             'permissions'=>'required',
             'permissions.*'=>'required|integer|exists:permissions,id',
         ]);
 
-        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id); //защита от подмены id super-user
+        // Проверка: предотвращает изменение имени роли на 'super-user'.
+        if ($request->name === 'super-user') {
+            return redirect()->back()->withInput()->with('error', 'The role name "super-user" cannot be assigned.'); // Перенаправляет с ошибкой.
+        }
 
-        $role->update([
+        $role->update([ // Обновляет имя роли.
             'name'=>$request->name,
         ]);
-        $permissions = Permission::whereIn('id', $request->permissions)->get();
-        $role->syncPermissions($permissions);
+        $permissions = Permission::whereIn('id', $request->permissions)->get(); // Получает выбранные разрешения.
+        $role->syncPermissions($permissions); // Синхронизирует разрешения.
 
-        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) updated!");
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) updated!"); // Перенаправляет с сообщением.
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Удаляет роль, предотвращая удаление 'super-user'.
      */
-    public function destroy(Role $role)
+    public function destroy(Role $role) // Метод для удаления роли.
     {
+        // Защита: предотвращает удаление роли "super-user".
         if ($role->name === 'super-user') {
-            return redirect()->route('roles.index')->with('error', 'Роль "super-user" не может быть удалена.');
+            return redirect()->route('roles.index')->with('error', 'The "super-user" role cannot be deleted.'); // Перенаправляет с ошибкой.
         }
 
-        $role->delete();
+        $role->delete(); // Удаляет роль.
 
-        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) deleted!");
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) deleted!"); // Перенаправляет с сообщением.
     }
 }

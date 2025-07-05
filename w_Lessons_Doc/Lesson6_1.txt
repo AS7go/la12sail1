@@ -1,0 +1,520 @@
+Урок 6_1 Добавление Защит для "super-user" в UserController и RoleController. Описание кода.
+
+    GitHub (урок 6):
+https://github.com/AS7go/la12sail1/tree/lesson_06_1
+
+    GitHub Текстовое Описание урока 
+https://github.com/AS7go/la12sail1/blob/lesson_06_1/w_Lessons_Doc/Lesson6_1.txt
+
+--- Вход на сайт
+http://localhost/
+admin@gmail.com
+12345678
+
+--- Пользователи (примеры учетных записей)
+http://localhost/
+test1@gmail.com
+12345678
+
+Mike
+mike@gmail.com
+12345678
+
+--- Вход в базу данных
+http://localhost:8080
+root
+password
+
+======================================================================================================================
+
+--- До редактирования просматриваем роли и права с использованием "super-user"
+
+=== Скрытие элементов в пользовательском интерфейсе не является полной мерой безопасности. Настоящая безопасность обеспечивается 
+на серверной стороне путем строгой валидации входящих данных и явных проверок разрешений и ролей для всех критически важных операций.
+Именно поэтому добавленные в RoleController.php и UserController.php серверные защиты являются необходимыми, а не избыточными.
+
+--- Добавим многоуровневые серверные защиты для роли 'super-user' в UserController и RoleController, чтобы предотвратить 
+любые несанкционированные действия (удаление, редактирование, присвоение роли) даже в случае обхода клиентского интерфейса.
+
+
+--- Отредактируем файл app/Http/Controllers/UserController.php
+
+<?php
+
+namespace App\Http\Controllers; // Пространство имен контроллеров.
+
+use App\Models\User; // Импорт модели User.
+use Illuminate\Http\Request; // Импорт класса Request для обработки запросов.
+use Spatie\Permission\Models\Role; // Импорт модели Role из пакета Spatie.
+use Illuminate\Support\Facades\Hash; // Импорт фасада Hash для хеширования паролей.
+use Spatie\Permission\Models\Permission; // Импорт модели Permission (для getAllPermissions()).
+
+class UserController extends Controller // Объявление класса UserController, наследующего базовый Controller.
+{
+    /**
+     * Отображает список всех пользователей, исключая 'super-user'.
+     */
+    public function index() // Метод для отображения списка пользователей.
+    {
+        // Получает всех пользователей, кроме 'super-user', сортируя по дате создания.
+        $users = User::whereDoesntHave('roles', function ($query) {
+            $query->where('name', 'super-user');
+        })->orderBy('created_at', 'desc')->get();
+
+        return view('users.index', compact([ // Возвращает представление 'users.index' с данными пользователей.
+            'users'
+        ]));
+    }
+
+    /**
+     * Отображает форму для создания нового пользователя, исключая 'super-user' из списка ролей.
+     */
+    public function create() // Метод для отображения формы создания пользователя.
+    {
+        // Получает все роли, кроме 'super-user', для выпадающего списка.
+        $roles = Role::where('name', '!=', 'super-user')->orderBy('name')->get();
+
+        return view('users.create', compact([ // Возвращает представление 'users.create' с данными ролей.
+            'roles',
+        ]));
+    }
+
+    /**
+     * Сохраняет нового пользователя, предотвращая присвоение роли 'super-user'.
+     */
+    public function store(Request $request) // Метод для сохранения нового пользователя.
+    {
+        $request->validate([ // Валидация входящих данных формы.
+            'name' => 'required|max:255',
+            'email' => 'required|email|unique:users',
+            'password' => 'required|min:8|confirmed',
+            'role_id' => 'required|integer|exists:roles,id',
+        ]);
+
+        $selectedRole = Role::find($request->role_id); // Находит выбранную роль по ID.
+
+        // Проверяет, не пытается ли пользователь присвоить роль 'super-user'.
+        if ($selectedRole && $selectedRole->name === 'super-user') {
+            return redirect()->back()->withInput()->with('error', 'The "super-user" role cannot be assigned.'); // Перенаправляет с ошибкой.
+        }
+
+        $user = User::create([ // Создает нового пользователя в базе данных.
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password), // Хеширует пароль.
+        ]);
+
+        $user->assignRole($selectedRole->name); // Присваивает выбранную роль пользователю.
+
+        // Перенаправляет на список пользователей с сообщением.
+        return redirect()->route('users.index')->with('success', "User ({$user->name}) created."); 
+    }
+
+    /**
+     * Метод для отображения одного пользователя (не реализован).
+     */
+    public function show(User $user)
+    {
+        //
+    }
+
+    /**
+     * Отображает форму для редактирования пользователя, исключая 'super-user' из списка ролей
+     * и предотвращая редактирование самого 'super-user'.
+     */
+    public function edit(User $user) // Метод для отображения формы редактирования пользователя.
+    {
+        // Защита: предотвращает редактирование пользователя с ролью 'super-user'.
+        if ($user->hasRole('super-user')) {
+            // Перенаправляет с ошибкой.
+            return redirect()->route('users.index')->with('error', 'The "super-user" cannot be edited through this interface.'); 
+        }
+
+        // Получает все роли, кроме 'super-user', для выпадающего списка.
+        $roles = Role::where('name', '!=', 'super-user')->orderBy('name')->get();
+
+        return view('users.edit', compact([ // Возвращает представление 'users.edit' с данными пользователя и ролей.
+            'user',
+            'roles',
+        ]));
+    }
+
+    /**
+     * Обновляет пользователя, предотвращая изменение на роль 'super-user'
+     * и запрещая обновление самого 'super-user'.
+     */
+    public function update(Request $request, User $user) // Метод для обновления данных пользователя.
+    {
+        // Защита: предотвращает обновление пользователя с ролью 'super-user'.
+        if ($user->hasRole('super-user')) {
+            // Перенаправляет с ошибкой.
+            return redirect()->route('users.index')->with('error', 'The "super-user" cannot be updated through this interface.');
+        }
+
+        $request->validate([ // Валидация входящих данных формы.
+            'name'=>'required|max:255',
+            'role_id'=>'required|integer|exists:roles,id',
+        ]);
+
+        $selectedRole = Role::find($request->role_id); // Находит выбранную роль по ID.
+
+        // Проверяет, не пытается ли пользователь присвоить роль 'super-user' при обновлении.
+        if ($selectedRole && $selectedRole->name === 'super-user') {
+            return redirect()->back()->withInput()->with('error', 'The "super-user" role cannot be assigned.'); // Перенаправляет с ошибкой.
+        }
+
+        $user->update([ // Обновляет имя пользователя.
+            'name'=>$request->name,
+        ]);
+
+        $user->syncRoles([$selectedRole->name]); // Синхронизирует роли пользователя.
+
+        // Перенаправляет на users.index с сообщением.
+        return redirect()->route('users.index')->with('success', "User ({$user->name}) updated.");
+        // return redirect()->back()->with('success', "User ({$user->name}) updated."); // Перенаправляет назад с сообщением.
+    }
+
+    /**
+     * Удаляет пользователя, предотвращая удаление 'super-user'.
+     */
+    public function destroy(User $user) // Метод для удаления пользователя.
+    {
+        // Защита: предотвращает удаление пользователя с ролью 'super-user'.
+        if ($user->hasRole('super-user')) {
+            return redirect()->route('users.index')->with('error', 'The "super-user" cannot be deleted.'); // Перенаправляет с ошибкой.
+        }
+
+        $userName = $user->name; // Сохраняет имя пользователя для сообщения.
+        $user->delete(); // Удаляет пользователя.
+
+        // Перенаправляет на список пользователей с сообщением.
+        return redirect()->route('users.index')->with('success', "User ({$userName}) deleted.");
+    }
+}
+
+--- Отредактируем файл app/Http/Controllers/RoleController.php
+
+<?php
+
+namespace App\Http\Controllers; // Пространство имен контроллеров.
+
+use Spatie\Permission\Models\Role; // Импорт модели Role из пакета Spatie.
+use Spatie\Permission\Models\Permission; // Импорт модели Permission.
+use Illuminate\Validation\Rule; // Импорт класса Rule для валидации.
+use Illuminate\Http\Request; // Импорт класса Request.
+
+class RoleController extends Controller // Объявление класса RoleController.
+{
+    /**
+     * Отображает список всех ролей, исключая 'super-user'.
+     */
+    public function index() // Метод для отображения списка ролей.
+    {
+        // Получает все роли, кроме 'super-user', для отображения.
+        $roles = Role::orderBy('name')->where('name', '!=', 'super-user')->get();
+
+        return view('roles.index', compact('roles')); // Возвращает представление 'roles.index'.
+    }
+
+    /**
+     * Отображает форму для создания новой роли.
+     */
+    public function create() // Метод для отображения формы создания роли.
+    {
+        $permissions = Permission::orderBy('name')->get(); // Получает все разрешения.
+
+        return view('roles.create', compact([ // Возвращает представление 'roles.create'.
+            'permissions'
+        ]));
+    }
+
+    /**
+     * Сохраняет новую роль, предотвращая создание роли 'super-user'.
+     */
+    public function store(Request $request) // Метод для сохранения новой роли.
+    {
+        $request->validate([ // Валидация входящих данных.
+            'name' => ['required', 'string', 'max:255', 'unique:roles,name'],
+            'permissions'=>'required',
+            'permissions.*'=>'required|integer|exists:permissions,id',
+        ]);
+
+        // Проверка: предотвращает создание роли с именем 'super-user'.
+        if ($request->name === 'super-user') {
+            return redirect()->back()->withInput()->with('error', 'The "super-user" role cannot be created.'); // Перенаправляет с ошибкой.
+        }
+
+        $newRole = Role::create([ // Создает новую роль.
+            'name'=>$request->name,
+        ]);
+        $permissions = Permission::whereIn('id', $request->permissions)->get(); // Получает выбранные разрешения.
+
+        $newRole->syncPermissions($permissions); // Синхронизирует разрешения с ролью.
+
+        return redirect()->route('roles.index')->with('success', "Role ({$newRole->name}) added!"); // Перенаправляет с сообщением.
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Role $role) // Метод для отображения одной роли (не реализован).
+    {
+        //
+    }
+
+    /**
+     * Отображает форму для редактирования существующей роли, предотвращая доступ к 'super-user'.
+     */
+    public function edit(Role $role) // Метод для отображения формы редактирования роли.
+    {
+        // Защита: предотвращает редактирование роли 'super-user' (выбросит 404).
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id);
+
+        $permissions = Permission::orderBy('name')->get(); // Получает все разрешения.
+
+        return view('roles.edit', compact([ // Возвращает представление 'roles.edit'.
+            'permissions',
+            'role',
+        ]));
+    }
+
+    /**
+     * Обновляет существующую роль, предотвращая изменение на 'super-user' и обновление самой 'super-user'.
+     */
+    public function update(Request $request, Role $role) // Метод для обновления роли.
+    {
+        // Защита: предотвращает обновление роли 'super-user' (выбросит 404).
+        $role = Role::where('name', '!=', 'super-user')->findOrFail($role->id);
+
+        $request->validate([ // Валидация входящих данных.
+            'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->ignore($role->id)],
+            'permissions'=>'required',
+            'permissions.*'=>'required|integer|exists:permissions,id',
+        ]);
+
+        // Проверка: предотвращает изменение имени роли на 'super-user'.
+        if ($request->name === 'super-user') {
+            return redirect()->back()->withInput()->with('error', 'The role name "super-user" cannot be assigned.'); // Перенаправляет с ошибкой.
+        }
+
+        $role->update([ // Обновляет имя роли.
+            'name'=>$request->name,
+        ]);
+        $permissions = Permission::whereIn('id', $request->permissions)->get(); // Получает выбранные разрешения.
+        $role->syncPermissions($permissions); // Синхронизирует разрешения.
+
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) updated!"); // Перенаправляет с сообщением.
+    }
+
+    /**
+     * Удаляет роль, предотвращая удаление 'super-user'.
+     */
+    public function destroy(Role $role) // Метод для удаления роли.
+    {
+        // Защита: предотвращает удаление роли "super-user".
+        if ($role->name === 'super-user') {
+            return redirect()->route('roles.index')->with('error', 'The "super-user" role cannot be deleted.'); // Перенаправляет с ошибкой.
+        }
+
+        $role->delete(); // Удаляет роль.
+
+        return redirect()->route('roles.index')->with('success', "Role ({$role->name}) deleted!"); // Перенаправляет с сообщением.
+    }
+}
+
+
+=== Описание resources/views/users/create.blade.php
+
+<x-app-layout> {{-- Основной макет Blade для страницы. --}}
+    <x-slot name="header"> {{-- Слот для заголовка страницы. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- HTML-заголовок `h2` со стилями Tailwind CSS. --}}
+            {{ __('Create User') }} {{-- Выводит локализованный текст "Create User". --}}
+        </h2> {{-- Закрывающий тег `h2`. --}}
+    </x-slot> {{-- Закрывающий тег слота 'header'. --}}
+
+    <div class="container mt-6"> {{-- Bootstrap-контейнер с верхним отступом. --}}
+        <div class="row"> {{-- Bootstrap-строка для сеточной разметки. --}}
+            <div class="col-md-12"> {{-- Bootstrap-колонка, занимающая всю ширину. --}}
+                <div class="card"> {{-- Карточка Bootstrap для группировки формы. --}}
+                    <div class="card-header bg-light"> {{-- Заголовок карточки. --}}
+                        Create New User {{-- Текст заголовка карточки. --}}
+                    </div> {{-- Закрывающий тег заголовка карточки. --}}
+                    <div class="card-body"> {{-- Тело карточки, содержащее форму. --}}
+                        <form action="{{ route('users.store') }}" method="POST"> {{-- Форма для создания пользователя. --}}
+                                                                                 {{-- `action`: URL для отправки данных. --}}
+                                                                                 {{-- `method`: HTTP-метод POST. --}}
+                            @csrf {{-- CSRF-токен для безопасности формы. --}}
+
+                            <div class="mb-3"> {{-- Группа формы для поля "Name". --}}
+                                <label for="name" class="form-label">Name</label> {{-- Метка для поля "Name". --}}
+                                <input type="text" name="name" id="name" class="form-control" required> {{-- Поле ввода для имени. --}}
+                            </div> {{-- Закрывающий тег группы формы. --}}
+
+                            <div class="mb-3"> {{-- Группа формы для поля "Email". --}}
+                                <label for="email" class="form-label">Email</label> {{-- Метка для поля "Email". --}}
+                                <input type="email" name="email" id="email" class="form-control" required> {{-- Поле ввода для email. --}}
+                            </div> {{-- Закрывающий тег группы формы. --}}
+
+                            <div class="mb-3"> {{-- Группа формы для поля "Password". --}}
+                                <label for="password" class="form-label">Password</label> {{-- Метка для поля "Password". --}}
+                                <input type="password" name="password" id="password" class="form-control" required> {{-- Поле ввода для пароля. --}}
+                            </div> {{-- Закрывающий тег группы формы. --}}
+
+                            <div class="mb-3"> {{-- Группа формы для поля "Confirm Password". --}}
+                                <label for="password_confirmation" class="form-label">Confirm Password</label> {{-- Метка для подтверждения пароля. --}}
+                                <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" required> 
+                                {{-- Поле ввода для подтверждения пароля. --}}
+
+                            </div> {{-- Закрывающий тег группы формы. --}}
+
+                            <div class="mb-3"> {{-- Группа формы для выбора роли. --}}
+                                <label for="role_id" class="form-label">Role</label> {{-- Метка для выбора роли. --}}
+                                <select name="role_id" id="role_id" class="form-select" required> {{-- Выпадающий список для выбора роли. --}}
+                                    <option value="">Select Role</option> {{-- Опция по умолчанию "Select Role". --}}
+                                    @foreach ($roles as $role) {{-- Цикл по доступным ролям. --}}
+                                        <option value="{{ $role->id }}">{{ $role->name }}</option> {{-- Опция списка: ID роли и её имя. --}}
+                                    @endforeach {{-- Конец цикла. --}}
+                                </select> {{-- Закрывающий тег выпадающего списка. --}}
+                            </div> {{-- Закрывающий тег группы формы. --}}
+
+                            <button type="submit" class="btn btn-primary">Create User</button> {{-- Кнопка отправки формы "Create User". --}}
+                        </form> {{-- Закрывающий тег формы. --}}
+                    </div> {{-- Закрывающий тег тела карточки. --}}
+                </div> {{-- Закрывающий тег карточки. --}}
+            </div> {{-- Закрывающий тег колонки. --}}
+        </div> {{-- Закрывающий тег строки. --}}
+    </div> {{-- Закрывающий тег контейнера. --}}
+</x-app-layout> {{-- Закрывающий тег основного макета. --}}
+
+
+=== Описание resources/views/users/edit.blade.php
+
+<x-app-layout> {{-- Основной макет Blade для страницы. --}}
+    <x-slot name="header"> {{-- Слот для заголовка страницы. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- HTML-заголовок `h2` со стилями Tailwind CSS. --}}
+            {{ __('Dashboard') }} {{-- Выводит локализованный текст "Dashboard". --}}
+        </h2> {{-- Закрывающий тег `h2`. --}}
+    </x-slot> {{-- Закрывающий тег слота 'header'. --}}
+
+    <div class="container mt-6"> {{-- Bootstrap-контейнер с верхним отступом. --}}
+        <div class="row"> {{-- Bootstrap-строка для сеточной разметки. --}}
+            <div class="col-md-12"> {{-- Bootstrap-колонка, занимающая всю ширину. --}}
+
+                <form method="post" action="{{route('users.update', $user->id)}}"> {{-- Форма для обновления пользователя. --}}
+                                                                        {{-- `action`: URL для отправки данных (включает ID пользователя). --}}
+                                                                        {{-- `method`: HTTP-метод POST. --}}
+                    @csrf {{-- CSRF-токен для безопасности формы. --}}
+                    @method('PUT') {{-- Подмена HTTP-метода POST на PUT для обновления ресурса. --}}
+                    <div class="form-group"> {{-- Группа формы для поля "Name". --}}
+                        <label for="exampleInputEmail1">Name</label> {{-- Метка для поля "Name". --}}
+                        <input type="text" name="name" value="{{$user->name}}" class="form-control mb-3" id="exampleInputEmail1">
+                         {{-- Поле ввода для имени, предзаполнено текущим именем пользователя. --}}
+
+                    </div> {{-- Закрывающий тег группы формы. --}}
+                    <div class="form-group"> {{-- Группа формы для поля "Email". --}}
+                        <label for="exampleInputEmail1">Email</label> {{-- Метка для поля "Email". --}}
+                        <input type="text" name="email" value="{{$user->email}}" class="form-control mb-3" id="exampleInputEmail1" readonly> 
+                        {{-- Поле ввода для email, предзаполнено и только для чтения. --}}
+
+                    </div> {{-- Закрывающий тег группы формы. --}}
+
+                    <div class="form-group"> {{-- Группа формы для выбора роли. --}}
+                        <label for="exampleFormControlSelect2">Role</label> {{-- Метка для выбора роли. --}}
+                        <select name="role_id" class="form-control mb-2" id="exampleFormControlSelect2"> {{-- Выпадающий список для выбора роли. --}}
+                                                                                                         {{-- `name`: имя поля для отправки данных. --}}
+                                                                                                         {{-- `id`: уникальный идентификатор. --}}
+                            @foreach($roles as $role) {{-- Цикл по всем доступным ролям. --}}
+                                <option value="{{$role['id']}}" {{-- Создает опцию: `value` - ID роли. --}}
+                                    @if($user->hasRole($role['name'])) {{-- Если пользователь имеет эту роль... --}}
+                                        selected {{-- ...опция помечается как выбранная. --}}
+                                    @endif>{{$role['name']}} {{-- Текст опции - имя роли. --}}
+                                </option> {{-- Закрывающий тег опции. --}}
+                            @endforeach {{-- Конец цикла. --}}
+                        </select> {{-- Закрывающий тег выпадающего списка. --}}
+                    </div> {{-- Закрывающий тег группы формы. --}}
+
+                    <button type="submit" class="btn btn-outline-success mb-2">Update User</button> {{-- Кнопка отправки формы "Update User". --}}
+                </form> {{-- Закрывающий тег формы. --}}
+            </div> {{-- Закрывающий тег колонки. --}}
+        </div> {{-- Закрывающий тег строки. --}}
+    </div> {{-- Закрывающий тег контейнера. --}}
+</x-app-layout> {{-- Закрывающий тег основного макета. --}}
+
+
+=== Описание resources/views/users/index.blade.php
+
+<x-app-layout> {{-- Основной макет Blade для страницы. --}}
+    <x-slot name="header"> {{-- Слот для заголовка страницы. --}}
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight"> {{-- HTML-заголовок `h2` со стилями Tailwind CSS. --}}
+            {{ __('Dashboard') }} {{-- Выводит локализованный текст "Dashboard". --}}
+        </h2> {{-- Закрывающий тег `h2`. --}}
+    </x-slot> {{-- Закрывающий тег слота 'header'. --}}
+
+    <div class="container mt-6"> {{-- Bootstrap-контейнер с верхним отступом. --}}
+        <div class="row"> {{-- Bootstrap-строка для сеточной разметки. --}}
+            <div class="col-md-12"> {{-- Bootstrap-колонка, занимающая всю ширину. --}}
+
+                <a href="{{ route('users.create') }}" class="btn btn-outline-success mb-2">Add new user</a> 
+                {{-- Кнопка/ссылка для создания нового пользователя. --}}
+
+                @foreach ($users as $user) {{-- Цикл по коллекции пользователей. --}}
+                    <div class="card mb-3"> {{-- Карточка для каждого пользователя. --}}
+                        <div class="card-header bg-light"> {{-- Заголовок карточки. --}}
+                            User Name: <strong>{{ $user->name }}</strong> {{-- Отображает имя пользователя. --}}
+                        </div> {{-- Закрывающий тег заголовка карточки. --}}
+                        <div class="card-body"> {{-- Тело карточки. --}}
+                            <p class="card-text mb-2"> {{-- Параграф для отображения ролей. --}}
+                                Roles: {{-- Текст "Roles:". --}}
+                                @if ($user->roles->isNotEmpty()) {{-- Если у пользователя есть роли... --}}
+                                    @foreach ($user->roles as $role) {{-- Цикл по ролям пользователя. --}}
+                                        <span class="badge bg-primary me-1">{{ $role->name }}</span> {{-- Отображает имя роли как значок. --}}
+                                    @endforeach {{-- Конец цикла ролей. --}}
+                                @else {{-- Иначе (если ролей нет)... --}}
+                                    <span class="text-muted">No roles assigned</span> {{-- Отображает "No roles assigned". --}}
+                                @endif {{-- Конец условия ролей. --}}
+                            </p> {{-- Закрывающий тег параграфа. --}}
+                            <p class="card-text"> {{-- Параграф для отображения разрешений. --}}
+                                Permissions: {{-- Текст "Permissions:". --}}
+                                {{-- Выводим все разрешения пользователя (прямые и через роли) --}}
+                                @php {{-- Начало PHP-блока. --}}
+                                    // Получаем все разрешения пользователя (прямые и через роли)
+                                    $allPermissions = $user->getAllPermissions(); {{-- Получает все разрешения пользователя. --}}
+                                @endphp {{-- Конец PHP-блока. --}}
+                                @if ($allPermissions->isNotEmpty()) {{-- Если у пользователя есть разрешения... --}}
+                                    @foreach ($allPermissions as $permission) {{-- Цикл по разрешениям пользователя. --}}
+                                        <span class="badge bg-info text-dark me-1">{{ $permission->name }}</span> 
+                                            {{-- Отображает имя разрешения как значок. --}}
+
+                                    @endforeach {{-- Конец цикла разрешений. --}}
+                                @else {{-- Иначе (если разрешений нет)... --}}
+                                    <span class="text-muted">No permissions assigned</span> {{-- Отображает "No permissions assigned". --}}
+                                @endif {{-- Конец условия разрешений. --}}
+
+                            </p> {{-- Закрывающий тег параграфа. --}}
+                            <div class="mt-3"> {{-- Группа кнопок с верхним отступом. --}}
+                                <a href="{{ route('users.edit', $user->id) }}" class="btn btn-outline-primary btn-sm">Edit</a> 
+                                {{-- Кнопка/ссылка для редактирования пользователя. --}}
+
+                                <form action="{{ route('users.destroy', $user->id) }}" method="POST" {{-- Форма для удаления пользователя. --}}
+                                    style="display: inline;" onsubmit="return confirmDelete()"> 
+                                            {{-- Инлайн-стиль и вызов JS-функции подтверждения. --}}
+
+                                    @csrf {{-- CSRF-токен для безопасности. --}}
+                                    @method('DELETE') {{-- Подмена HTTP-метода на DELETE. --}}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button> 
+                                            {{-- Кнопка отправки формы удаления. --}}
+
+                                </form> {{-- Закрывающий тег формы. --}}
+                            </div> {{-- Закрывающий тег группы кнопок. --}}
+                        </div> {{-- Закрывающий тег тела карточки. --}}
+                    </div> {{-- Закрывающий тег карточки. --}}
+                @endforeach {{-- Конец цикла пользователей. --}}
+
+            </div> {{-- Закрывающий тег колонки. --}}
+        </div> {{-- Закрывающий тег строки. --}}
+    </div> {{-- Закрывающий тег контейнера. --}}
+
+</x-app-layout> {{-- Закрывающий тег основного макета. --}}
+
+
+
