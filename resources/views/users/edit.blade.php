@@ -17,7 +17,8 @@
                     </div>
                     <div class="form-group">
                         <label for="exampleInputEmail1">Email</label>
-                        <input type="text" name="email" value="{{$user->email}}" class="form-control mb-3" id="exampleInputEmail1" readonly>
+                        {{-- <input type="text" name="email" value="{{$user->email}}" class="form-control mb-3" id="exampleInputEmail1" readonly> --}}
+                        <input type="text" name="email" value="{{$user->email}}" class="form-control mb-3" id="exampleInputEmail1">
                     </div>
 
                     <div class="form-group">

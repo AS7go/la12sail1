@@ -6,7 +6,9 @@ use App\Models\User; // Импорт модели User.
 use Illuminate\Http\Request; // Импорт класса Request для обработки запросов.
 use Spatie\Permission\Models\Role; // Импорт модели Role из пакета Spatie.
 use Illuminate\Support\Facades\Hash; // Импорт фасада Hash для хеширования паролей.
-use Spatie\Permission\Models\Permission; // Импорт модели Permission (для getAllPermissions()).
+use Illuminate\Validation\Rule; // < - Добавлен импорт Rule (Правило) для уникальной валидации
+
+
 
 class UserController extends Controller // Объявление класса UserController, наследующего базовый Controller.
 {
@@ -111,7 +113,19 @@ class UserController extends Controller // Объявление класса Use
         }
 
         $request->validate([ // Валидация входящих данных формы.
-            'name'=>'required|max:255',
+            // 'name'=>'required|max:255',
+            'name' => [ // Добавлены правила валидации для name
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('users', 'name')->ignore($user->id), //Разрешает пользователю сохранить имя, но требует уникальности среди других.
+            ],
+
+            'email' => [ // Добавлены правила валидации для email
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($user->id), //Разрешает пользователю сохранить email, но требует уникальности среди других.
+            ],
             'role_id'=>'required|integer|exists:roles,id',
         ]);
 
@@ -124,6 +138,8 @@ class UserController extends Controller // Объявление класса Use
 
         $user->update([ // Обновляет имя пользователя.
             'name'=>$request->name,
+            'email' => $request->email, // <-- Теперь email будет обновляться
+
         ]);
 
         $user->syncRoles([$selectedRole->name]); // Синхронизирует роли пользователя.
